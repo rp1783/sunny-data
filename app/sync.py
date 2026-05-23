@@ -2,17 +2,18 @@ import asyncio
 import json
 import logging
 import queue
+import shlex
 import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator
 
-from config import AppConfig, ssh_key_path
+from config import AppConfig, DATA_DIR, ssh_key_path
 
 _log = logging.getLogger(__name__)
 
-LAST_SYNC_PATH = Path("/app/data/last_sync.json")
+LAST_SYNC_PATH = DATA_DIR / "last_sync.json"
 
 _sync_lock = threading.Lock()
 _sync_running = threading.Event()
@@ -58,7 +59,7 @@ def _sync_worker(config: AppConfig) -> None:
         "--partial",
         "--progress",
         "-e",
-        f"ssh -i {key} -p {config.ssh_port} -o StrictHostKeyChecking=no -o BatchMode=yes",
+        f"ssh -i {shlex.quote(key)} -p {config.ssh_port} -o StrictHostKeyChecking=no -o BatchMode=yes",
         f"{config.device_user}@{config.device_ip}:{config.remote_path}",
         config.local_path,
     ]
@@ -92,6 +93,15 @@ async def sse_generator() -> AsyncGenerator[str, None]:
     client_queue: queue.Queue = queue.Queue()
     with _subscribers_lock:
         _subscribers.append(client_queue)
+        already_done = not _sync_running.is_set() and client_queue.empty()
+    if already_done:
+        with _subscribers_lock:
+            try:
+                _subscribers.remove(client_queue)
+            except ValueError:
+                pass
+        yield "data: __DONE__\n\n"
+        return
     loop = asyncio.get_running_loop()
     try:
         while True:
