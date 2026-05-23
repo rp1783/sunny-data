@@ -1,0 +1,9 @@
+# pull_recordings.conf.example
+# Copy to pull_recordings.conf and fill in your values.
+
+DEVICE_IP=192.168.1.x
+DEVICE_USER=comma
+SSH_KEY=~/.ssh/id_rsa
+SSH_PORT=22
+REMOTE_PATH=/data/media/0/realdata/
+LOCAL_PATH=/path/to/recordings/
