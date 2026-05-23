@@ -256,12 +256,12 @@ async function loadRecordings() {
             <div class="segment-label">Segment ${escHtml(seg.segment)}</div>
             ${seg.files.includes('qcamera.ts') ? `
               <video controls preload="metadata"
-                src="/files/realdata/${encodeURIComponent(session.session)}/${encodeURIComponent(seg.segment)}/qcamera.ts">
+                src="/files/${seg.path}/qcamera.ts">
               </video>
             ` : ''}
             <div class="downloads">
               ${seg.files.map(f => `
-                <a href="/files/realdata/${encodeURIComponent(session.session)}/${encodeURIComponent(seg.segment)}/${encodeURIComponent(f)}"
+                <a href="/files/${seg.path}/${encodeURIComponent(f)}"
                    download="${escHtml(f)}">${escHtml(f)}</a>
               `).join('')}
             </div>
