@@ -33,7 +33,10 @@ function hideBanner() {
 function simpleToCron() {
   const n = parseInt(document.getElementById('interval-value').value, 10) || 1;
   const unit = document.getElementById('interval-unit').value;
-  return unit === 'hours' ? `0 */${n} * * *` : `*/${n} * * * *`;
+  if (unit === 'hours') {
+    return n >= 24 ? '0 0 * * *' : (n === 1 ? '0 * * * *' : `0 */${n} * * *`);
+  }
+  return n === 1 ? '* * * * *' : `*/${n} * * * *`;
 }
 
 function cronToHuman(cron) {
@@ -41,6 +44,8 @@ function cronToHuman(cron) {
   const hourly = cron.match(/^0 \*\/(\d+) \* \* \*$/);
   const minutely = cron.match(/^\*\/(\d+) \* \* \* \*$/);
   if (cron === '0 * * * *') return 'Runs every hour';
+  if (cron === '* * * * *') return 'Runs every minute';
+  if (cron === '0 0 * * *') return 'Runs every 24 hours (daily at midnight)';
   if (hourly) return `Runs every ${hourly[1]} hour(s)`;
   if (minutely) return `Runs every ${minutely[1]} minute(s)`;
   return `Schedule: ${cron}`;
@@ -65,6 +70,9 @@ function applyScheduleToForm(schedule) {
   const minutely = schedule.match(/^\*\/(\d+) \* \* \* \*$/);
   if (schedule === '0 * * * *') {
     document.getElementById('interval-value').value = 1;
+    document.getElementById('interval-unit').value = 'hours';
+  } else if (schedule === '0 0 * * *') {
+    document.getElementById('interval-value').value = 24;
     document.getElementById('interval-unit').value = 'hours';
   } else if (hourly) {
     document.getElementById('interval-value').value = hourly[1];
