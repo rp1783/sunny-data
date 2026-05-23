@@ -1,0 +1,13 @@
+docs/
+tests/
+*.md
+*.conf
+.git/
+__pycache__/
+*.pyc
+.gitignore
+requirements-dev.txt
+conftest.py
+sunny-data.xml
+pull_recordings.sh
+pull_recordings.conf.example
