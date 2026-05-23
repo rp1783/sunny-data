@@ -243,13 +243,14 @@ function _fileColor(filename) {
 }
 
 function _renderSegment(seg) {
+  const safePath = escHtml(seg.path);
   const videoHtml = seg.files.includes('qcamera.ts') ? `
     <video controls preload="metadata" class="seg-video"
-      src="/files/${seg.path}/qcamera.ts"></video>
+      src="/files/${safePath}/qcamera.ts"></video>
   ` : '';
   const downloads = seg.files.map(f => `
     <a class="dl-pill" style="color:${_fileColor(f)};border-color:${_fileColor(f)}"
-       href="/files/${seg.path}/${encodeURIComponent(f)}" download="${escHtml(f)}">
+       href="/files/${safePath}/${encodeURIComponent(f)}" download="${escHtml(f)}">
       ⬇ ${escHtml(f)}
     </a>
   `).join('');
