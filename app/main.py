@@ -1,11 +1,11 @@
-import os
+import logging as _logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from croniter import croniter
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -21,6 +21,8 @@ from config import (
 from recordings import build_recording_tree, resolve_file_path
 from sync import get_last_sync, is_sync_running, run_sync, sse_generator
 
+_log = _logging.getLogger(__name__)
+
 scheduler = BackgroundScheduler()
 
 
@@ -30,7 +32,7 @@ def _scheduled_sync() -> None:
         try:
             run_sync(config)
         except RuntimeError:
-            pass  # already running
+            _log.warning("Scheduled sync skipped — sync already in progress")
 
 
 @asynccontextmanager
@@ -80,8 +82,6 @@ def post_config(payload: ConfigPayload):
         raise HTTPException(status_code=422, detail="Invalid cron expression")
     config = AppConfig(**payload.model_dump())
     save_config(config)
-    if scheduler.get_job("sync_job"):
-        scheduler.remove_job("sync_job")
     scheduler.add_job(
         _scheduled_sync,
         CronTrigger.from_crontab(config.schedule),
