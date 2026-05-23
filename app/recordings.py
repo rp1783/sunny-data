@@ -83,9 +83,15 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
     sessions = []
     for session_name, segs in groups.items():
         segs_sorted = sorted(segs, key=lambda t: t[0])
-        # Start time from the --0 segment's mtime
-        start_mtime = next((t[3] for t in segs_sorted if t[0] == 0), segs_sorted[0][3])
+        # Start time from the --0 segment's mtime; if absent, back-calculate from earliest segment
+        min_seg_index = segs_sorted[0][0]
+        if min_seg_index == 0:
+            start_mtime = segs_sorted[0][3]
+        else:
+            fallback_mtime = segs_sorted[0][3]
+            start_mtime = fallback_mtime - min_seg_index * 60
         start_dt = datetime.fromtimestamp(start_mtime)
+        # mtime is the best available timestamp; it may drift after filesystem operations
         segments = []
         for seg_index, folder_name, raw_files, _ in segs_sorted:
             seg_dt = start_dt + timedelta(minutes=seg_index)
@@ -95,10 +101,11 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
                 "time_label": _fmt_time_range(seg_dt),
                 "files": _order_files(raw_files),
             })
+        max_seg_index = segs_sorted[-1][0]
         sessions.append({
             "session": session_name,
             "start_label": _fmt_time(start_dt),
-            "duration_min": len(segments),
+            "duration_min": max_seg_index + 1,
             "segments": segments,
             "start_dt": start_dt,
         })

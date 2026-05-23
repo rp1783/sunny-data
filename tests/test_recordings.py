@@ -59,7 +59,7 @@ def test_flat_session_has_start_label_and_duration(tmp_path):
     result = build_recording_tree(str(tmp_path))
     session = result[0]["sessions"][0]
     assert session["duration_min"] == 2
-    assert ":" in session["start_label"]   # has time formatting
+    assert session["start_label"] == "7:03 PM"
 
 
 def test_flat_segment_has_index_and_time_label(tmp_path):
