@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>sunny-data</Name>
+  <Repository>sunny-data:latest</Repository>
+  <Registry></Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Overview>Sync and browse Comma 4 dashcam recordings. Pulls recordings via rsync/SSH, with a web UI to view recordings, trigger manual syncs, and configure the schedule.</Overview>
+  <Category>Productivity: MediaApp:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <Icon></Icon>
+  <Config
+    Name="Web UI Port"
+    Target="8080"
+    Default="8080"
+    Mode="tcp"
+    Description="Port for the sunny-data web interface."
+    Type="Port"
+    Display="always"
+    Required="true"
+    Mask="false">8080</Config>
+  <Config
+    Name="App Data"
+    Target="/app/data"
+    Default="/mnt/user/appdata/sunny-data"
+    Mode="rw"
+    Description="Stores config file, SSH key, and last-sync state."
+    Type="Path"
+    Display="always"
+    Required="true"
+    Mask="false">/mnt/user/appdata/sunny-data</Config>
+  <Config
+    Name="Recordings"
+    Target="/recordings"
+    Default="/mnt/user/Recordings"
+    Mode="rw"
+    Description="Share where recordings are synced to. Must exist on Unraid before starting the container."
+    Type="Path"
+    Display="always"
+    Required="true"
+    Mask="false">/mnt/user/Recordings</Config>
+</Container>
