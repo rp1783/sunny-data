@@ -10,6 +10,15 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// ── HTML escaping ─────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ── Banner ────────────────────────────────────────────────────────────────
 function showBanner(msg) {
   const el = document.getElementById('banner');
@@ -88,22 +97,27 @@ document.getElementById('toggle-advanced').addEventListener('click', () => {
 
 // ── Config load/save ──────────────────────────────────────────────────────
 async function loadConfig() {
-  const res = await fetch('/api/config');
-  const cfg = await res.json();
-  if (!cfg || Object.keys(cfg).length === 0) {
-    showBanner('Configuration incomplete — go to Settings to set up.');
-    return;
-  }
-  hideBanner();
-  const form = document.getElementById('settings-form');
-  ['device_ip', 'device_user', 'ssh_port', 'remote_path', 'local_path'].forEach(k => {
-    const el = form.elements[k];
-    if (el && cfg[k] != null) el.value = cfg[k];
-  });
-  if (cfg.schedule) applyScheduleToForm(cfg.schedule);
-  if (cfg.ssh_key_set) {
-    document.querySelector('[name="ssh_key"]').placeholder =
-      'SSH key is set. Paste a new key here only if you want to replace it.';
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) { showBanner('Configuration incomplete — go to Settings to set up.'); return; }
+    const cfg = await res.json();
+    if (!cfg || Object.keys(cfg).length === 0) {
+      showBanner('Configuration incomplete — go to Settings to set up.');
+      return;
+    }
+    hideBanner();
+    const form = document.getElementById('settings-form');
+    ['device_ip', 'device_user', 'ssh_port', 'remote_path', 'local_path'].forEach(k => {
+      const el = form.elements[k];
+      if (el && cfg[k] != null) el.value = cfg[k];
+    });
+    if (cfg.schedule) applyScheduleToForm(cfg.schedule);
+    if (cfg.ssh_key_set) {
+      document.querySelector('[name="ssh_key"]').placeholder =
+        'SSH key is set. Paste a new key here only if you want to replace it.';
+    }
+  } catch {
+    showBanner('Could not load configuration — is the server running?');
   }
 }
 
@@ -112,6 +126,7 @@ document.getElementById('settings-form').addEventListener('submit', async e => {
   const form = e.target;
   const errorEl = document.getElementById('settings-error');
   errorEl.classList.add('hidden');
+  errorEl.style.color = '';
 
   const sshKey = form.elements['ssh_key'].value.trim();
   if (sshKey) {
@@ -191,8 +206,10 @@ document.getElementById('pull-now-btn').addEventListener('click', async () => {
   }
 
   const es = new EventSource('/api/sync/stream');
+  const esTimeout = setTimeout(() => { es.close(); btn.disabled = false; }, 5 * 60 * 1000);
   es.onmessage = ev => {
     if (ev.data === '__DONE__') {
+      clearTimeout(esTimeout);
       es.close();
       btn.disabled = false;
       loadSyncStatus();
@@ -202,6 +219,7 @@ document.getElementById('pull-now-btn').addEventListener('click', async () => {
     log.scrollTop = log.scrollHeight;
   };
   es.onerror = () => {
+    clearTimeout(esTimeout);
     es.close();
     btn.disabled = false;
   };
@@ -211,35 +229,41 @@ document.getElementById('pull-now-btn').addEventListener('click', async () => {
 async function loadRecordings() {
   const container = document.getElementById('recordings-tree');
   container.innerHTML = '<p class="muted">Loading...</p>';
-  const res = await fetch('/api/recordings');
-  const sessions = await res.json();
-
-  if (!Array.isArray(sessions) || sessions.length === 0) {
-    container.innerHTML = '<p class="muted">No recordings found. Run a sync to pull recordings from your device.</p>';
-    return;
-  }
-
-  container.innerHTML = sessions.map(session => `
-    <details class="session">
-      <summary>${session.session}</summary>
-      ${session.segments.map(seg => `
-        <div class="segment">
-          <div class="segment-label">Segment ${seg.segment}</div>
-          ${seg.files.includes('qcamera.ts') ? `
-            <video controls preload="metadata"
-              src="/files/realdata/${encodeURIComponent(session.session)}/${seg.segment}/qcamera.ts">
-            </video>
-          ` : ''}
-          <div class="downloads">
-            ${seg.files.map(f => `
-              <a href="/files/realdata/${encodeURIComponent(session.session)}/${seg.segment}/${encodeURIComponent(f)}"
-                 download="${f}">${f}</a>
-            `).join('')}
+  try {
+    const res = await fetch('/api/recordings');
+    if (!res.ok) {
+      container.innerHTML = '<p class="error">Failed to load recordings.</p>';
+      return;
+    }
+    const sessions = await res.json();
+    if (!Array.isArray(sessions) || sessions.length === 0) {
+      container.innerHTML = '<p class="muted">No recordings found. Run a sync to pull recordings from your device.</p>';
+      return;
+    }
+    container.innerHTML = sessions.map(session => `
+      <details class="session">
+        <summary>${escHtml(session.session)}</summary>
+        ${session.segments.map(seg => `
+          <div class="segment">
+            <div class="segment-label">Segment ${escHtml(seg.segment)}</div>
+            ${seg.files.includes('qcamera.ts') ? `
+              <video controls preload="metadata"
+                src="/files/realdata/${encodeURIComponent(session.session)}/${encodeURIComponent(seg.segment)}/qcamera.ts">
+              </video>
+            ` : ''}
+            <div class="downloads">
+              ${seg.files.map(f => `
+                <a href="/files/realdata/${encodeURIComponent(session.session)}/${encodeURIComponent(seg.segment)}/${encodeURIComponent(f)}"
+                   download="${escHtml(f)}">${escHtml(f)}</a>
+              `).join('')}
+            </div>
           </div>
-        </div>
-      `).join('')}
-    </details>
-  `).join('');
+        `).join('')}
+      </details>
+    `).join('');
+  } catch {
+    container.innerHTML = '<p class="error">Error loading recordings.</p>';
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
