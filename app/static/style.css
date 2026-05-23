@@ -167,58 +167,110 @@ legend { padding: 0 6px; color: #aaa; font-size: 13px; }
   color: #86efac;
 }
 
-/* Recordings */
-.session {
-  border: 1px solid #2a2f3f;
-  border-radius: 5px;
+/* ── Recordings UI ─────────────────────────────────────────────────────── */
+
+.date-group {
+  margin-bottom: 24px;
+}
+
+.date-header {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.date-header::before,
+.date-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #2a2d3a;
+}
+
+.session-card {
+  background: #1a1d27;
+  border-left: 3px solid #3b82f6;
+  border-radius: 8px;
   margin-bottom: 8px;
   overflow: hidden;
 }
-.session > summary {
-  padding: 10px 14px;
+
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
   cursor: pointer;
-  font-size: 13px;
-  font-family: monospace;
-  background: #1a1d27;
-  list-style: none;
   user-select: none;
 }
-.session > summary:hover { background: #21263a; }
-.session > summary::before { content: '▶ '; font-size: 10px; color: #555; }
-.session[open] > summary::before { content: '▼ '; }
 
-.segment {
-  padding: 14px 16px;
-  border-top: 1px solid #2a2f3f;
+.session-header:hover {
+  background: #1e2233;
 }
-.segment-label {
-  font-size: 11px;
-  color: #555;
+
+.session-chevron {
+  font-size: 0.7rem;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.session-meta {
+  font-size: 0.92rem;
+  color: #e2e8f0;
+}
+
+.session-body {
+  padding: 0 12px 12px;
+}
+
+.seg-card {
+  background: #1e2130;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 8px 0;
+}
+
+.seg-header {
+  font-size: 0.78rem;
+  color: #6b7280;
   margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
 }
-video {
+
+.seg-video {
   width: 100%;
-  max-width: 620px;
+  max-height: 240px;
   border-radius: 4px;
-  background: #000;
   display: block;
   margin-bottom: 10px;
+  background: #000;
 }
-.downloads {
+
+.dl-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.downloads a {
-  font-size: 12px;
-  color: #7ba4d4;
-  background: #1e2130;
+
+.dl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: 999px;
+  border: 1px solid;
+  background: transparent;
+  font-size: 0.78rem;
   text-decoration: none;
-  border: 1px solid #353a52;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
 }
-.downloads a:hover { background: #2d3249; color: #a0c4f1; }
+
+.dl-pill:hover {
+  opacity: 0.75;
+}
