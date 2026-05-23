@@ -1,5 +1,79 @@
 <!DOCTYPE html>
-<html>
-<head><title>Sunny Data</title></head>
-<body><p>Sunny Data</p></body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sunny-data</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="banner" class="banner hidden"></div>
+
+  <nav>
+    <button class="tab-btn active" data-tab="recordings">Recordings</button>
+    <button class="tab-btn" data-tab="sync">Sync</button>
+    <button class="tab-btn" data-tab="settings">Settings</button>
+  </nav>
+
+  <div id="tab-recordings" class="tab-panel">
+    <div id="recordings-tree"><p class="muted">Loading...</p></div>
+  </div>
+
+  <div id="tab-sync" class="tab-panel hidden">
+    <div class="sync-header">
+      <span id="last-sync-label" class="muted">Last sync: —</span>
+      <span id="sync-badge"></span>
+    </div>
+    <button id="pull-now-btn">Pull Now</button>
+    <pre id="sync-log"></pre>
+  </div>
+
+  <div id="tab-settings" class="tab-panel hidden">
+    <form id="settings-form">
+      <label>Device IP
+        <input name="device_ip" type="text" placeholder="192.168.1.x">
+      </label>
+      <label>Device User
+        <input name="device_user" type="text" placeholder="comma">
+      </label>
+      <label>SSH Port
+        <input name="ssh_port" type="number" value="22" min="1" max="65535">
+      </label>
+      <label>Remote Path
+        <input name="remote_path" type="text" placeholder="/data/media/0/realdata/">
+      </label>
+      <label>Local Path (container)
+        <input name="local_path" type="text" placeholder="/recordings">
+        <span class="hint">Use the container-internal path (e.g. /recordings)</span>
+      </label>
+      <label>SSH Private Key
+        <textarea name="ssh_key" placeholder="Paste private key content here. Leave blank to keep existing key."></textarea>
+      </label>
+
+      <fieldset>
+        <legend>Schedule</legend>
+        <div id="schedule-simple" class="schedule-row">
+          <span>Every</span>
+          <input id="interval-value" type="number" min="1" max="999" value="1">
+          <select id="interval-unit">
+            <option value="hours">hours</option>
+            <option value="minutes">minutes</option>
+          </select>
+        </div>
+        <button type="button" id="toggle-advanced">Advanced ▾</button>
+        <div id="schedule-advanced" class="hidden">
+          <label>Cron expression
+            <input name="schedule" type="text" placeholder="0 * * * *">
+          </label>
+          <div id="cron-preview" class="hint"></div>
+        </div>
+      </fieldset>
+
+      <div id="settings-error" class="error hidden"></div>
+      <button type="submit">Save Settings</button>
+    </form>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
 </html>
