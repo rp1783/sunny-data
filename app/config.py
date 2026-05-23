@@ -1,8 +1,11 @@
 import json
+import logging
 import os
 from pathlib import Path
 
 from pydantic import BaseModel
+
+_log = logging.getLogger(__name__)
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/app/data"))
 
@@ -30,7 +33,8 @@ def load_config() -> AppConfig | None:
         return None
     try:
         return AppConfig(**json.loads(p.read_text()))
-    except Exception:
+    except Exception as exc:
+        _log.warning("Failed to load config from %s: %s", p, exc)
         return None
 
 
@@ -41,10 +45,12 @@ def save_config(config: AppConfig) -> None:
 
 
 def save_ssh_key(key: str) -> None:
+    import os as _os
     p = ssh_key_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(key)
-    p.chmod(0o600)
+    fd = _os.open(str(p), _os.O_WRONLY | _os.O_CREAT | _os.O_TRUNC, 0o600)
+    with _os.fdopen(fd, "w") as f:
+        f.write(key)
 
 
 def is_config_complete(config: AppConfig | None) -> bool:
