@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def build_recording_tree(local_path: str) -> list:
-    base = Path(local_path) / "realdata"
+    base = Path(local_path).resolve() / "realdata"
     if not base.exists():
         return []
 
