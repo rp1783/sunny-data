@@ -1,5 +1,50 @@
+import os
 import re
+from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
+
+
+def _fmt_time(dt: datetime) -> str:
+    return dt.strftime("%-I:%M %p")
+
+
+def _fmt_time_range(dt: datetime) -> str:
+    end = dt + timedelta(minutes=1)
+    return f"{_fmt_time(dt)} – {_fmt_time(end)}"
+
+
+def _fmt_date_label(dt: datetime) -> str:
+    return dt.strftime("%A, %B %-d")
+
+
+def _order_files(files: list[str]) -> list[str]:
+    if "qcamera.ts" in files:
+        rest = sorted(f for f in files if f != "qcamera.ts")
+        return ["qcamera.ts"] + rest
+    return sorted(files)
+
+
+def _group_sessions_by_date(sessions: list[dict]) -> list[dict]:
+    """sessions: list of dicts with 'start_dt' (datetime) + all output fields."""
+    by_date: dict[str, list] = defaultdict(list)
+    for s in sessions:
+        date_key = s["start_dt"].strftime("%Y-%m-%d")
+        by_date[date_key].append(s)
+
+    result = []
+    for date_key in sorted(by_date.keys(), reverse=True):
+        day_sessions = sorted(by_date[date_key], key=lambda s: s["start_dt"], reverse=True)
+        dt = day_sessions[0]["start_dt"]
+        result.append({
+            "date": date_key,
+            "date_label": _fmt_date_label(dt),
+            "sessions": [
+                {k: v for k, v in s.items() if k != "start_dt"}
+                for s in day_sessions
+            ],
+        })
+    return result
 
 
 def build_recording_tree(local_path: str) -> list:
@@ -7,69 +52,95 @@ def build_recording_tree(local_path: str) -> list:
     if not base.exists():
         return []
 
-    # Detect layout: nested (session/segN/files) vs flat (session--segN/files)
     flat_seg_pattern = re.compile(r"^(.+)--(\d+)$")
     top_dirs = sorted(d for d in base.iterdir() if d.is_dir())
 
     if not top_dirs:
         return []
 
-    # Check if any top-level dir has numeric subdirectories (nested layout)
     sample = top_dirs[0]
-    has_nested = any(
-        sub.is_dir() and sub.name.isdigit() for sub in sample.iterdir()
-    )
+    has_nested = any(sub.is_dir() and sub.name.isdigit() for sub in sample.iterdir())
 
     if has_nested:
-        # Nested layout: session_dir/segment_N/files
-        sessions = []
-        for session_dir in top_dirs:
-            segments = []
-            for seg_dir in sorted(
-                session_dir.iterdir(),
-                key=lambda p: int(p.name) if p.name.isdigit() else p.name,
-            ):
-                if not seg_dir.is_dir():
-                    continue
-                files = sorted(f.name for f in seg_dir.iterdir() if f.is_file())
-                if files:
-                    segments.append({
-                        "segment": seg_dir.name,
-                        "path": f"realdata/{session_dir.name}/{seg_dir.name}",
-                        "files": files,
-                    })
-            if segments:
-                sessions.append({"session": session_dir.name, "segments": segments})
-        return sessions
+        return _build_nested(base, top_dirs)
+    return _build_flat(base, top_dirs, flat_seg_pattern)
 
-    # Flat layout: routeId--segN/files  →  group into sessions by prefix
-    groups: dict[str, list] = {}
+
+def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
+    groups: dict[str, list] = defaultdict(list)
     for d in top_dirs:
-        m = flat_seg_pattern.match(d.name)
+        m = pattern.match(d.name)
         if m:
-            session_name, seg_num = m.group(1), int(m.group(2))
+            session_name, seg_index = m.group(1), int(m.group(2))
         else:
-            session_name, seg_num = d.name, 0
-        files = sorted(f.name for f in d.iterdir() if f.is_file())
-        if files:
-            groups.setdefault(session_name, []).append(
-                (seg_num, d.name, files)
-            )
+            session_name, seg_index = d.name, 0
+        raw_files = [f.name for f in d.iterdir() if f.is_file()]
+        if not raw_files:
+            continue
+        mtime = os.path.getmtime(d)
+        groups[session_name].append((seg_index, d.name, raw_files, mtime))
 
     sessions = []
-    for session_name in sorted(groups):
-        segs = sorted(groups[session_name], key=lambda t: t[0])
-        segments = [
-            {
-                "segment": folder_name,
+    for session_name, segs in groups.items():
+        segs_sorted = sorted(segs, key=lambda t: t[0])
+        # Start time from the --0 segment's mtime
+        start_mtime = next((t[3] for t in segs_sorted if t[0] == 0), segs_sorted[0][3])
+        start_dt = datetime.fromtimestamp(start_mtime)
+        segments = []
+        for seg_index, folder_name, raw_files, _ in segs_sorted:
+            seg_dt = start_dt + timedelta(minutes=seg_index)
+            segments.append({
                 "path": f"realdata/{folder_name}",
-                "files": files,
-            }
-            for _, folder_name, files in segs
-        ]
-        sessions.append({"session": session_name, "segments": segments})
+                "index": seg_index,
+                "time_label": _fmt_time_range(seg_dt),
+                "files": _order_files(raw_files),
+            })
+        sessions.append({
+            "session": session_name,
+            "start_label": _fmt_time(start_dt),
+            "duration_min": len(segments),
+            "segments": segments,
+            "start_dt": start_dt,
+        })
 
-    return sessions
+    return _group_sessions_by_date(sessions)
+
+
+def _build_nested(base: Path, top_dirs: list[Path]) -> list:
+    sessions = []
+    for session_dir in top_dirs:
+        seg_dirs = sorted(
+            (d for d in session_dir.iterdir() if d.is_dir() and d.name.isdigit()),
+            key=lambda p: int(p.name),
+        )
+        raw_segments = []
+        for seg_dir in seg_dirs:
+            raw_files = [f.name for f in seg_dir.iterdir() if f.is_file()]
+            if raw_files:
+                raw_segments.append((int(seg_dir.name), seg_dir, raw_files))
+        if not raw_segments:
+            continue
+
+        first_seg_dir = raw_segments[0][1]
+        start_dt = datetime.fromtimestamp(os.path.getmtime(first_seg_dir))
+        segments = []
+        for seg_index, seg_dir, raw_files in raw_segments:
+            seg_dt = start_dt + timedelta(minutes=seg_index)
+            segments.append({
+                "path": f"realdata/{session_dir.name}/{seg_dir.name}",
+                "index": seg_index,
+                "time_label": _fmt_time_range(seg_dt),
+                "files": _order_files(raw_files),
+            })
+        sessions.append({
+            "session": session_dir.name,
+            "start_label": _fmt_time(start_dt),
+            "duration_min": len(segments),
+            "segments": segments,
+            "start_dt": start_dt,
+        })
+
+    return _group_sessions_by_date(sessions)
 
 
 def resolve_file_path(local_path: str, rel_path: str) -> Path | None:
