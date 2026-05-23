@@ -1,2 +1,4 @@
 pull_recordings.conf
 .DS_Store
+__pycache__/
+*.pyc
