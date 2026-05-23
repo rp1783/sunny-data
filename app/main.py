@@ -40,12 +40,15 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     config = load_config()
     if config and is_config_complete(config):
-        scheduler.add_job(
-            _scheduled_sync,
-            CronTrigger.from_crontab(config.schedule),
-            id="sync_job",
-            replace_existing=True,
-        )
+        try:
+            scheduler.add_job(
+                _scheduled_sync,
+                CronTrigger.from_crontab(config.schedule),
+                id="sync_job",
+                replace_existing=True,
+            )
+        except Exception:
+            _log.warning("Saved schedule %r is invalid — sync job not scheduled", config.schedule)
     yield
     scheduler.shutdown()
 
