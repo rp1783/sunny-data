@@ -234,7 +234,87 @@ document.getElementById('pull-now-btn').addEventListener('click', async () => {
 });
 
 // ── Recordings tab ────────────────────────────────────────────────────────
+let _openSessionEl = null;
+
+function _fileColor(filename) {
+  if (filename.endsWith('.ts'))   return '#86efac';
+  if (filename.endsWith('.hevc')) return '#93c5fd';
+  return '#9ca3af';
+}
+
+function _renderSegment(seg) {
+  const videoHtml = seg.files.includes('qcamera.ts') ? `
+    <video controls preload="metadata" class="seg-video"
+      src="/files/${seg.path}/qcamera.ts"></video>
+  ` : '';
+  const downloads = seg.files.map(f => `
+    <a class="dl-pill" style="color:${_fileColor(f)};border-color:${_fileColor(f)}"
+       href="/files/${seg.path}/${encodeURIComponent(f)}" download="${escHtml(f)}">
+      ⬇ ${escHtml(f)}
+    </a>
+  `).join('');
+  return `
+    <div class="seg-card">
+      <div class="seg-header">Segment ${seg.index + 1} · ${escHtml(seg.time_label)}</div>
+      ${videoHtml}
+      <div class="dl-row">${downloads}</div>
+    </div>
+  `;
+}
+
+function _renderSession(session) {
+  const segsHtml = session.segments.map(_renderSegment).join('');
+  const meta = `${escHtml(session.start_label)} · ${session.duration_min} min · ${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}`;
+  return `
+    <div class="session-card" data-session="${escHtml(session.session)}">
+      <div class="session-header">
+        <span class="session-chevron">▶</span>
+        <span class="session-meta">${meta}</span>
+      </div>
+      <div class="session-body hidden">${segsHtml}</div>
+    </div>
+  `;
+}
+
+function _renderDateGroup(group) {
+  const sessionsHtml = group.sessions.map(_renderSession).join('');
+  return `
+    <div class="date-group">
+      <div class="date-header">${escHtml(group.date_label)}</div>
+      ${sessionsHtml}
+    </div>
+  `;
+}
+
+function _attachSessionToggles(container) {
+  container.querySelectorAll('.session-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const card = header.closest('.session-card');
+      const body = card.querySelector('.session-body');
+      const chevron = card.querySelector('.session-chevron');
+      const isOpen = !body.classList.contains('hidden');
+
+      // Collapse previously open session
+      if (_openSessionEl && _openSessionEl !== card) {
+        _openSessionEl.querySelector('.session-body').classList.add('hidden');
+        _openSessionEl.querySelector('.session-chevron').textContent = '▶';
+      }
+
+      if (isOpen) {
+        body.classList.add('hidden');
+        chevron.textContent = '▶';
+        _openSessionEl = null;
+      } else {
+        body.classList.remove('hidden');
+        chevron.textContent = '▼';
+        _openSessionEl = card;
+      }
+    });
+  });
+}
+
 async function loadRecordings() {
+  _openSessionEl = null;
   const container = document.getElementById('recordings-tree');
   container.innerHTML = '<p class="muted">Loading...</p>';
   try {
@@ -243,32 +323,13 @@ async function loadRecordings() {
       container.innerHTML = '<p class="error">Failed to load recordings.</p>';
       return;
     }
-    const sessions = await res.json();
-    if (!Array.isArray(sessions) || sessions.length === 0) {
-      container.innerHTML = '<p class="muted">No recordings found. Run a sync to pull recordings from your device.</p>';
+    const groups = await res.json();
+    if (!Array.isArray(groups) || groups.length === 0) {
+      container.innerHTML = '<p class="muted">No recordings yet — run a sync to pull from your device.</p>';
       return;
     }
-    container.innerHTML = sessions.map(session => `
-      <details class="session">
-        <summary>${escHtml(session.session)}</summary>
-        ${session.segments.map(seg => `
-          <div class="segment">
-            <div class="segment-label">Segment ${escHtml(seg.segment)}</div>
-            ${seg.files.includes('qcamera.ts') ? `
-              <video controls preload="metadata"
-                src="/files/${seg.path}/qcamera.ts">
-              </video>
-            ` : ''}
-            <div class="downloads">
-              ${seg.files.map(f => `
-                <a href="/files/${seg.path}/${encodeURIComponent(f)}"
-                   download="${escHtml(f)}">${escHtml(f)}</a>
-              `).join('')}
-            </div>
-          </div>
-        `).join('')}
-      </details>
-    `).join('');
+    container.innerHTML = groups.map(_renderDateGroup).join('');
+    _attachSessionToggles(container);
   } catch {
     container.innerHTML = '<p class="error">Error loading recordings.</p>';
   }
