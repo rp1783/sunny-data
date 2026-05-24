@@ -44,12 +44,19 @@ def test_stitch_session_creates_stitched_dir(tmp_path):
     assert (tmp_path / "stitched").is_dir()
 
 
+def _write_faststart_mp4(path: Path) -> None:
+    """Write a minimal MP4 with moov before mdat so _has_faststart returns True."""
+    moov = b"\x00\x00\x00\x08moov"
+    mdat = b"\x00\x00\x00\x08mdat"
+    path.write_bytes(moov + mdat)
+
+
 def test_stitch_session_skips_when_output_newer(tmp_path):
     seg = _make_seg(tmp_path, "abc--def--0", ["fcamera.hevc"])
     out_dir = tmp_path / "stitched"
     out_dir.mkdir()
     out = out_dir / "abc--def--fcamera.mp4"
-    out.write_text("mp4")
+    _write_faststart_mp4(out)
     (out_dir / "abc--def.jpg").write_text("jpg")
     future = time.time() + 3600
     os.utime(out, (future, future))

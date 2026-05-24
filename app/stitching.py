@@ -16,7 +16,7 @@ def _concat_files(src_files: list[Path], out_file: Path, timeout: int = 600) -> 
     try:
         result = subprocess.run(
             ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", filelist,
-             "-c", "copy", str(out_file)],
+             "-c", "copy", "-movflags", "+faststart", str(out_file)],
             capture_output=True,
             timeout=timeout,
         )
@@ -47,8 +47,31 @@ def _generate_thumbnail(mp4_path: Path, jpg_path: Path) -> None:
         _log.warning("Thumbnail generation failed for %s: %s", mp4_path.name, exc)
 
 
+def _has_faststart(mp4: Path) -> bool:
+    """Return True if the moov atom appears before the mdat atom."""
+    try:
+        with mp4.open("rb") as fh:
+            while True:
+                size_bytes = fh.read(4)
+                if len(size_bytes) < 4:
+                    return False
+                size = int.from_bytes(size_bytes, "big")
+                name = fh.read(4)
+                if name == b"moov":
+                    return True
+                if name == b"mdat":
+                    return False
+                if size < 8:
+                    return False
+                fh.seek(size - 8, 1)
+    except OSError:
+        return False
+
+
 def _needs_stitch(out_file: Path, src_files: list[Path]) -> bool:
     if not out_file.exists():
+        return True
+    if not _has_faststart(out_file):
         return True
     out_mtime = out_file.stat().st_mtime
     return any(f.stat().st_mtime > out_mtime for f in src_files)
