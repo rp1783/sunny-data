@@ -242,12 +242,8 @@ function _fileColor(filename) {
   return '#9ca3af';
 }
 
-function _renderSegment(seg) {
+function _renderSegment(seg, hasStitched) {
   const safePath = escHtml(seg.path);
-  const videoHtml = seg.files.includes('qcamera.ts') ? `
-    <video controls preload="metadata" class="seg-video"
-      src="/files/${safePath}/qcamera.ts"></video>
-  ` : '';
   const downloads = seg.files.map(f => `
     <a class="dl-pill" style="color:${_fileColor(f)};border-color:${_fileColor(f)}"
        href="/files/${safePath}/${encodeURIComponent(f)}" download="${escHtml(f)}">
@@ -257,22 +253,29 @@ function _renderSegment(seg) {
   return `
     <div class="seg-card">
       <div class="seg-header">Segment ${seg.index + 1} · ${escHtml(seg.time_label)}</div>
-      ${videoHtml}
       <div class="dl-row">${downloads}</div>
     </div>
   `;
 }
 
 function _renderSession(session) {
-  const segsHtml = session.segments.map(_renderSegment).join('');
-  const meta = `${escHtml(session.start_label)} · ${session.duration_min} min · ${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}`;
+  const stitchedVideo = session.stitched_path ? `
+    <video controls preload="metadata" class="session-video"
+      src="/files/${escHtml(session.stitched_path)}"></video>
+  ` : '';
+  const segsHtml = session.segments.map(seg => _renderSegment(seg, !!session.stitched_path)).join('');
+  const segCount = session.segments.length;
+  const meta = `${escHtml(session.start_label)} · ${session.duration_min} min · ${segCount} segment${segCount === 1 ? '' : 's'}`;
   return `
     <div class="session-card" data-session="${escHtml(session.session)}">
       <div class="session-header">
         <span class="session-chevron">▶</span>
         <span class="session-meta">${meta}</span>
       </div>
-      <div class="session-body hidden">${segsHtml}</div>
+      <div class="session-body hidden">
+        ${stitchedVideo}
+        ${segsHtml}
+      </div>
     </div>
   `;
 }
@@ -335,6 +338,23 @@ async function loadRecordings() {
     container.innerHTML = '<p class="error">Error loading recordings.</p>';
   }
 }
+
+// ── Stitch ────────────────────────────────────────────────────────────────
+document.getElementById('stitch-all-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('stitch-all-btn');
+  const status = document.getElementById('stitch-status');
+  btn.disabled = true;
+  status.textContent = 'Stitching in background — reload recordings in a moment...';
+  status.classList.remove('hidden');
+
+  await fetch('/api/stitch', {method: 'POST'});
+
+  setTimeout(() => {
+    loadRecordings();
+    btn.disabled = false;
+    status.classList.add('hidden');
+  }, 5000);
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────
 loadConfig();

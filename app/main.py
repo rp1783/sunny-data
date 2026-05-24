@@ -1,4 +1,5 @@
 import logging as _logging
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from config import (
     ssh_key_path,
 )
 from recordings import build_recording_tree, resolve_file_path
+from stitching import stitch_all
 from sync import get_last_sync, is_sync_running, run_sync, sse_generator
 
 _log = _logging.getLogger(__name__)
@@ -122,6 +124,19 @@ async def sync_stream():
 @app.get("/api/sync/status")
 def sync_status():
     return {"running": is_sync_running(), "last_sync": get_last_sync()}
+
+
+@app.post("/api/stitch")
+def trigger_stitch():
+    config = load_config()
+    if not config:
+        raise HTTPException(status_code=400, detail="Configuration incomplete")
+    threading.Thread(
+        target=stitch_all,
+        args=(config.local_path,),
+        daemon=True,
+    ).start()
+    return {"ok": True}
 
 
 @app.get("/api/recordings")

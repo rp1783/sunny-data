@@ -85,6 +85,16 @@ def _sync_worker(config: AppConfig) -> None:
     done_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     word = "complete" if rc == 0 else "failed"
     _broadcast(f"[{done_ts}] Sync {word} (exit code {rc}).\n")
+
+    if rc == 0:
+        from stitching import stitch_all
+
+        stitch_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _broadcast(f"[{stitch_ts}] Stitching sessions...\n")
+        stitch_all(config.local_path, on_progress=lambda m: _broadcast(f"  {m}\n"))
+        done2 = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _broadcast(f"[{done2}] Stitching complete.\n")
+
     _broadcast(None)  # sentinel — signals all SSE generators to stop
     _sync_running.clear()
 

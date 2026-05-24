@@ -18,6 +18,11 @@ def _fmt_date_label(dt: datetime) -> str:
     return dt.strftime("%A, %B %-d")
 
 
+def _stitched_path(base: Path, session_name: str) -> str | None:
+    out = base.parent / "stitched" / f"{session_name}.mp4"
+    return f"stitched/{session_name}.mp4" if out.exists() else None
+
+
 def _order_files(files: list[str]) -> list[str]:
     if "qcamera.ts" in files:
         rest = sorted(f for f in files if f != "qcamera.ts")
@@ -107,6 +112,7 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
             "start_label": _fmt_time(start_dt),
             "duration_min": max_seg_index + 1,
             "segments": segments,
+            "stitched_path": _stitched_path(base, session_name),
             "start_dt": start_dt,
         })
 
@@ -144,6 +150,7 @@ def _build_nested(base: Path, top_dirs: list[Path]) -> list:
             "start_label": _fmt_time(start_dt),
             "duration_min": len(segments),
             "segments": segments,
+            "stitched_path": _stitched_path(base, session_dir.name),
             "start_dt": start_dt,
         })
 
