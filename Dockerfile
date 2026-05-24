@@ -14,7 +14,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ .
-COPY schemas/ /app/schemas/
 
 RUN adduser --disabled-password --gecos "" appuser \
     && mkdir -p /app/data \

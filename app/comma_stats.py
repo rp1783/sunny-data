@@ -6,7 +6,7 @@ from pathlib import Path
 
 _log = logging.getLogger(__name__)
 
-_SCHEMA_DIR = Path(__file__).parent.parent / "schemas"
+_SCHEMA_DIR = Path(__file__).parent / "schemas"
 _CACHE_VERSION = 1
 _M_PER_S_TO_MPH = 2.23694
 _M_TO_MILES = 0.000621371
