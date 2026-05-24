@@ -55,11 +55,10 @@ def test_no_segments_returns_none():
 
 def test_cache_hit_avoids_reparse(monkeypatch):
     parse_count = [0]
-    real_parse = comma_stats._parse_qlog
 
     def counting_parse(path):
         parse_count[0] += 1
-        return {}
+        return {"speed_samples": [(0, 10.0), (1_000_000_000, 10.0)], "gps_points": [], "op_samples": []}
 
     monkeypatch.setattr(comma_stats, "_parse_qlog", counting_parse)
 

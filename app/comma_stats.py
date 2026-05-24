@@ -72,13 +72,13 @@ def _parse_qlog(path: Path) -> dict:
                 elif which == "gpsLocationExternal":
                     try:
                         g = msg.gpsLocationExternal
-                        gps_points.append((g.latitude, g.longitude, g.accuracy))
+                        gps_points.append((g.latitude, g.longitude, g.horizontalAccuracy))
                     except Exception:
                         pass
 
-                elif which == "controlsState":
+                elif which == "selfdriveState":
                     try:
-                        op_samples.append((mono, msg.controlsState.enabled))
+                        op_samples.append((mono, msg.selfdriveState.enabled))
                     except Exception:
                         pass
 
@@ -213,10 +213,12 @@ def get_or_compute_stats(local_path: str, session_name: str, segment_paths: list
     # Parse outside the lock (can be slow)
     stats = _parse_session(local_path, segment_paths)
 
-    with _cache_lock:
-        cache = _load_cache()
-        cache["sessions"][session_name] = {"cache_key": key, "stats": stats}
-        _save_cache(cache)
+    # Only cache successful results — don't cache None so transient failures retry
+    if stats is not None:
+        with _cache_lock:
+            cache = _load_cache()
+            cache["sessions"][session_name] = {"cache_key": key, "stats": stats}
+            _save_cache(cache)
 
     return stats
 
