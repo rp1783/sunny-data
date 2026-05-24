@@ -284,23 +284,18 @@ function openModal(session) {
       src="/files/${escHtml(session.stitched_path)}"></video>
   ` : '<p class="muted modal-no-video">No stitched video — click Stitch All Sessions to generate one.</p>';
 
-  const allFiles = session.segments.flatMap(seg =>
-    seg.files.map(f => ({file: f, path: seg.path}))
-  );
-  const downloads = allFiles.map(({file, path}) => `
-    <a class="dl-pill" style="color:${_fileColor(file)};border-color:${_fileColor(file)}"
-       href="/files/${escHtml(path)}/${encodeURIComponent(file)}" download="${escHtml(file)}">
-      ⬇ ${escHtml(file)}
+  const filename = `${escHtml(session.session)}.mp4`;
+  const downloadBtn = session.stitched_path ? `
+    <a class="dl-pill" style="color:#86efac;border-color:#86efac"
+       href="/files/${escHtml(session.stitched_path)}" download="${filename}">
+      ⬇ Download video
     </a>
-  `).join('');
+  ` : '';
 
   document.getElementById('modal-content').innerHTML = `
     ${video}
     <div class="modal-title">${escHtml(session.start_label)} · ${session.duration_min} min · ${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}</div>
-    <div class="modal-downloads">
-      <div class="modal-section-label">Downloads</div>
-      <div class="dl-row">${downloads}</div>
-    </div>
+    ${downloadBtn ? `<div class="modal-downloads"><div class="dl-row">${downloadBtn}</div></div>` : ''}
   `;
   document.getElementById('rec-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
