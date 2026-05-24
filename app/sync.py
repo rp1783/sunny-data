@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from config import AppConfig, DATA_DIR, ssh_key_path
+import log_buffer as _lb
 
 _log = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ _subscribers_lock = threading.Lock()
 
 
 def _broadcast(item: object) -> None:
+    if isinstance(item, str):
+        _lb.append("SYNC", item.rstrip())
     with _subscribers_lock:
         for q in _subscribers:
             q.put(item)

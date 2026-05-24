@@ -56,6 +56,7 @@ def stitch_session(
                 result.stderr.decode(errors="replace")[-500:],
             )
             return "error"
+        _generate_thumbnail(out_file, out_dir / f"{session_name}.jpg")
         return "stitched"
     except Exception as exc:
         _log.warning("stitch_session failed for %s: %s", session_name, exc)
@@ -65,6 +66,25 @@ def stitch_session(
             os.unlink(filelist)
         except OSError:
             pass
+
+
+def _generate_thumbnail(mp4_path: Path, jpg_path: Path) -> None:
+    try:
+        subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-ss", "00:00:05",
+                "-i", str(mp4_path),
+                "-vframes", "1",
+                "-vf", "scale=480:-2",
+                "-q:v", "4",
+                str(jpg_path),
+            ],
+            capture_output=True,
+            timeout=30,
+        )
+    except Exception as exc:
+        _log.warning("Thumbnail generation failed for %s: %s", mp4_path.name, exc)
 
 
 def stitch_all(local_path: str, on_progress=None) -> dict[str, str]:

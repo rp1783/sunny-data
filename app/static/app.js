@@ -7,6 +7,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
     if (btn.dataset.tab === 'recordings') loadRecordings();
     if (btn.dataset.tab === 'sync') loadSyncStatus();
+    if (btn.dataset.tab === 'logs') startLogPolling();
   });
 });
 
@@ -28,7 +29,6 @@ function showBanner(msg) {
 function hideBanner() {
   document.getElementById('banner').classList.add('hidden');
 }
-
 
 // ── Config load/save ──────────────────────────────────────────────────────
 async function loadConfig() {
@@ -141,6 +141,7 @@ document.getElementById('pull-now-btn').addEventListener('click', async () => {
       es.close();
       btn.disabled = false;
       loadSyncStatus();
+      loadRecordings();
       return;
     }
     log.textContent += ev.data + '\n';
@@ -153,8 +154,67 @@ document.getElementById('pull-now-btn').addEventListener('click', async () => {
   };
 });
 
-// ── Recordings tab ────────────────────────────────────────────────────────
-let _openSessionEl = null;
+// ── Log tab ───────────────────────────────────────────────────────────────
+let _logPollTimer = null;
+let _logEntries = [];
+
+const _levelColor = {
+  ERROR:   '#f87171',
+  WARNING: '#fbbf24',
+  INFO:    '#6b7280',
+  SYNC:    '#93c5fd',
+};
+
+function _renderLogs() {
+  const list = document.getElementById('log-list');
+  if (_logEntries.length === 0) {
+    list.innerHTML = '<p class="muted log-empty">No log entries yet.</p>';
+    return;
+  }
+  list.innerHTML = _logEntries.map(e => `
+    <div class="log-entry">
+      <span class="log-ts">${escHtml(e.ts)}</span>
+      <span class="log-level" style="color:${_levelColor[e.level] || '#9ca3af'}">${escHtml(e.level)}</span>
+      <span class="log-msg">${escHtml(e.msg)}</span>
+    </div>
+  `).join('');
+  const autoScroll = document.getElementById('log-autoscroll').checked;
+  if (autoScroll) list.scrollTop = list.scrollHeight;
+}
+
+async function _pollLogs() {
+  try {
+    const res = await fetch('/api/logs');
+    if (res.ok) {
+      _logEntries = await res.json();
+      _renderLogs();
+    }
+  } catch {}
+}
+
+function startLogPolling() {
+  _pollLogs();
+  if (!_logPollTimer) {
+    _logPollTimer = setInterval(_pollLogs, 5000);
+  }
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab !== 'logs' && _logPollTimer) {
+      clearInterval(_logPollTimer);
+      _logPollTimer = null;
+    }
+  });
+});
+
+document.getElementById('log-clear-btn').addEventListener('click', () => {
+  _logEntries = [];
+  _renderLogs();
+});
+
+// ── Recordings: helpers ───────────────────────────────────────────────────
+let _sessionsMap = new Map();
 
 function _fileColor(filename) {
   if (filename.endsWith('.ts'))   return '#86efac';
@@ -162,102 +222,106 @@ function _fileColor(filename) {
   return '#9ca3af';
 }
 
-function _renderSegment(seg, hasStitched) {
-  const safePath = escHtml(seg.path);
-  const downloads = seg.files.map(f => `
-    <a class="dl-pill" style="color:${_fileColor(f)};border-color:${_fileColor(f)}"
-       href="/files/${safePath}/${encodeURIComponent(f)}" download="${escHtml(f)}">
-      ⬇ ${escHtml(f)}
-    </a>
-  `).join('');
-  return `
-    <div class="seg-card">
-      <div class="seg-header">Segment ${seg.index + 1} · ${escHtml(seg.time_label)}</div>
-      <div class="dl-row">${downloads}</div>
-    </div>
-  `;
-}
+// ── Recordings: YouTube grid ──────────────────────────────────────────────
+function _renderCard(session) {
+  _sessionsMap.set(session.session, session);
+  const thumb = session.thumbnail_path
+    ? `<img class="rec-thumb-img" src="/files/${escHtml(session.thumbnail_path)}" loading="lazy" alt="">`
+    : `<div class="rec-thumb-placeholder">▶</div>`;
 
-function _renderSession(session) {
-  const stitchedVideo = session.stitched_path ? `
-    <video controls preload="metadata" class="session-video"
-      src="/files/${escHtml(session.stitched_path)}"></video>
-  ` : '';
-  const segsHtml = session.segments.map(seg => _renderSegment(seg, !!session.stitched_path)).join('');
-  const segCount = session.segments.length;
-  const meta = `${escHtml(session.start_label)} · ${session.duration_min} min · ${segCount} segment${segCount === 1 ? '' : 's'}`;
   return `
-    <div class="session-card" data-session="${escHtml(session.session)}">
-      <div class="session-header">
-        <span class="session-chevron">▶</span>
-        <span class="session-meta">${meta}</span>
+    <div class="rec-card" data-sid="${escHtml(session.session)}">
+      <div class="rec-thumb-wrap">
+        ${thumb}
+        <span class="rec-duration">${session.duration_min} min</span>
       </div>
-      <div class="session-body hidden">
-        ${stitchedVideo}
-        ${segsHtml}
+      <div class="rec-info">
+        <div class="rec-title">${escHtml(session.start_label)}</div>
+        <div class="rec-meta">${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}</div>
       </div>
     </div>
   `;
 }
 
 function _renderDateGroup(group) {
-  const sessionsHtml = group.sessions.map(_renderSession).join('');
+  const cards = group.sessions.map(_renderCard).join('');
   return `
     <div class="date-group">
       <div class="date-header">${escHtml(group.date_label)}</div>
-      ${sessionsHtml}
+      <div class="recordings-grid">${cards}</div>
     </div>
   `;
 }
 
-function _attachSessionToggles(container) {
-  container.querySelectorAll('.session-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const card = header.closest('.session-card');
-      const body = card.querySelector('.session-body');
-      const chevron = card.querySelector('.session-chevron');
-      const isOpen = !body.classList.contains('hidden');
-
-      // Collapse previously open session
-      if (_openSessionEl && _openSessionEl !== card) {
-        _openSessionEl.querySelector('.session-body').classList.add('hidden');
-        _openSessionEl.querySelector('.session-chevron').textContent = '▶';
-      }
-
-      if (isOpen) {
-        body.classList.add('hidden');
-        chevron.textContent = '▶';
-        _openSessionEl = null;
-      } else {
-        body.classList.remove('hidden');
-        chevron.textContent = '▼';
-        _openSessionEl = card;
-      }
-    });
-  });
-}
-
 async function loadRecordings() {
-  _openSessionEl = null;
-  const container = document.getElementById('recordings-tree');
-  container.innerHTML = '<p class="muted">Loading...</p>';
+  _sessionsMap.clear();
+  const root = document.getElementById('recordings-grid-root');
+  root.innerHTML = '<p class="muted">Loading...</p>';
   try {
     const res = await fetch('/api/recordings');
-    if (!res.ok) {
-      container.innerHTML = '<p class="error">Failed to load recordings.</p>';
-      return;
-    }
+    if (!res.ok) { root.innerHTML = '<p class="error">Failed to load recordings.</p>'; return; }
     const groups = await res.json();
     if (!Array.isArray(groups) || groups.length === 0) {
-      container.innerHTML = '<p class="muted">No recordings yet — run a sync to pull from your device.</p>';
+      root.innerHTML = '<p class="muted">No recordings yet — run a sync to pull from your device.</p>';
       return;
     }
-    container.innerHTML = groups.map(_renderDateGroup).join('');
-    _attachSessionToggles(container);
+    root.innerHTML = groups.map(_renderDateGroup).join('');
+    root.querySelectorAll('.rec-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const session = _sessionsMap.get(card.dataset.sid);
+        if (session) openModal(session);
+      });
+    });
   } catch {
-    container.innerHTML = '<p class="error">Error loading recordings.</p>';
+    root.innerHTML = '<p class="error">Error loading recordings.</p>';
   }
 }
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(session) {
+  const video = session.stitched_path ? `
+    <video controls autoplay class="modal-video"
+      src="/files/${escHtml(session.stitched_path)}"></video>
+  ` : '<p class="muted modal-no-video">No stitched video — click Stitch All Sessions to generate one.</p>';
+
+  const allFiles = session.segments.flatMap(seg =>
+    seg.files.map(f => ({file: f, path: seg.path}))
+  );
+  const downloads = allFiles.map(({file, path}) => `
+    <a class="dl-pill" style="color:${_fileColor(file)};border-color:${_fileColor(file)}"
+       href="/files/${escHtml(path)}/${encodeURIComponent(file)}" download="${escHtml(file)}">
+      ⬇ ${escHtml(file)}
+    </a>
+  `).join('');
+
+  document.getElementById('modal-content').innerHTML = `
+    ${video}
+    <div class="modal-title">${escHtml(session.start_label)} · ${session.duration_min} min · ${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}</div>
+    <div class="modal-downloads">
+      <div class="modal-section-label">Downloads</div>
+      <div class="dl-row">${downloads}</div>
+    </div>
+  `;
+  document.getElementById('rec-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  const modal = document.getElementById('rec-modal');
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
+  // Stop video playback
+  const video = modal.querySelector('video');
+  if (video) { video.pause(); video.src = ''; }
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('rec-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('rec-modal')) closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
 
 // ── Stitch ────────────────────────────────────────────────────────────────
 document.getElementById('stitch-all-btn').addEventListener('click', async () => {

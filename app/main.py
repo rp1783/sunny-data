@@ -3,6 +3,7 @@ import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from log_buffer import RingBufferHandler, get_all as get_logs
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -20,6 +21,11 @@ from stitching import stitch_all
 from sync import get_last_sync, is_sync_running, run_sync, sse_generator
 
 _log = _logging.getLogger(__name__)
+
+_handler = RingBufferHandler()
+_handler.setFormatter(_logging.Formatter("%(name)s: %(message)s"))
+_logging.getLogger().addHandler(_handler)
+_logging.getLogger().setLevel(_logging.INFO)
 
 app = FastAPI()
 
@@ -94,6 +100,11 @@ def trigger_stitch():
         daemon=True,
     ).start()
     return {"ok": True}
+
+
+@app.get("/api/logs")
+def get_log_entries():
+    return get_logs()
 
 
 @app.get("/api/recordings")

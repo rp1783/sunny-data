@@ -28,11 +28,11 @@ def test_stitch_session_runs_ffmpeg(tmp_path):
         ])
 
     assert result == "stitched"
-    assert mock_run.called
-    cmd = mock_run.call_args[0][0]
-    assert "ffmpeg" in cmd
-    assert "-f" in cmd and "concat" in cmd
-    assert str(tmp_path / "stitched" / "abc--def.mp4") in cmd
+    # First call is the concat stitch; second is thumbnail generation
+    stitch_call = mock_run.call_args_list[0][0][0]
+    assert "ffmpeg" in stitch_call
+    assert "-f" in stitch_call and "concat" in stitch_call
+    assert str(tmp_path / "stitched" / "abc--def.mp4") in stitch_call
 
 
 def test_stitch_session_creates_stitched_dir(tmp_path):
@@ -107,7 +107,8 @@ def test_stitch_all_stitches_each_session(tmp_path):
 
     assert "aaa--bbb" in results
     assert "ccc--ddd" in results
-    assert mock_run.call_count == 2
+    # 2 sessions × 2 ffmpeg calls each (stitch + thumbnail)
+    assert mock_run.call_count == 4
 
 
 def test_stitch_all_calls_on_progress(tmp_path):
