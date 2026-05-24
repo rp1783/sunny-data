@@ -5,7 +5,7 @@ import queue
 import shlex
 import subprocess
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -77,7 +77,7 @@ def _sync_worker(config: AppConfig) -> None:
         rc = 1
 
     status = "success" if rc == 0 else "error"
-    ts_iso = datetime.now().isoformat()
+    ts_iso = datetime.now(timezone.utc).isoformat()
     result = {"status": status, "timestamp": ts_iso, "exit_code": rc}
     LAST_SYNC_PATH.parent.mkdir(parents=True, exist_ok=True)
     LAST_SYNC_PATH.write_text(json.dumps(result, indent=2))
