@@ -348,23 +348,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
-// ── Stitch ────────────────────────────────────────────────────────────────
-document.getElementById('stitch-all-btn').addEventListener('click', async () => {
-  const btn = document.getElementById('stitch-all-btn');
-  const status = document.getElementById('stitch-status');
-  btn.disabled = true;
-  status.textContent = 'Stitching in background — reload recordings in a moment...';
-  status.classList.remove('hidden');
-
-  await fetch('/api/stitch', {method: 'POST'});
-
-  setTimeout(() => {
-    loadRecordings();
-    btn.disabled = false;
-    status.classList.add('hidden');
-  }, 5000);
-});
-
 // ── Init ──────────────────────────────────────────────────────────────────
 loadConfig();
 loadSyncStatus();
