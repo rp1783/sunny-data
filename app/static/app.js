@@ -237,7 +237,6 @@ function _renderCard(session) {
       </div>
       <div class="rec-info">
         <div class="rec-title">${escHtml(session.start_label)}</div>
-        <div class="rec-meta">${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}</div>
       </div>
     </div>
   `;
@@ -253,8 +252,27 @@ function _renderDateGroup(group) {
   `;
 }
 
-async function loadRecordings() {
+let _allGroups = [];
+
+function _renderRecordings() {
+  const filter = document.getElementById('date-filter').value;
+  const root = document.getElementById('recordings-grid-root');
+  const visible = filter ? _allGroups.filter(g => g.date === filter) : _allGroups;
+  if (visible.length === 0) {
+    root.innerHTML = '<p class="muted">No recordings for this date.</p>';
+    return;
+  }
   _sessionsMap.clear();
+  root.innerHTML = visible.map(_renderDateGroup).join('');
+  root.querySelectorAll('.rec-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const session = _sessionsMap.get(card.dataset.sid);
+      if (session) openModal(session);
+    });
+  });
+}
+
+async function loadRecordings() {
   const root = document.getElementById('recordings-grid-root');
   root.innerHTML = '<p class="muted">Loading...</p>';
   try {
@@ -265,17 +283,19 @@ async function loadRecordings() {
       root.innerHTML = '<p class="muted">No recordings yet — run a sync to pull from your device.</p>';
       return;
     }
-    root.innerHTML = groups.map(_renderDateGroup).join('');
-    root.querySelectorAll('.rec-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const session = _sessionsMap.get(card.dataset.sid);
-        if (session) openModal(session);
-      });
-    });
+    _allGroups = groups;
+    const sel = document.getElementById('date-filter');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">All dates</option>' +
+      groups.map(g => `<option value="${escHtml(g.date)}">${escHtml(g.date_label)}</option>`).join('');
+    if (prev && groups.some(g => g.date === prev)) sel.value = prev;
+    _renderRecordings();
   } catch {
     root.innerHTML = '<p class="error">Error loading recordings.</p>';
   }
 }
+
+document.getElementById('date-filter').addEventListener('change', _renderRecordings);
 
 // ── Modal ─────────────────────────────────────────────────────────────────
 function openModal(session) {
