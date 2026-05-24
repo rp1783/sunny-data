@@ -213,6 +213,36 @@ document.getElementById('log-clear-btn').addEventListener('click', () => {
   _renderLogs();
 });
 
+// ── Stats helpers ─────────────────────────────────────────────────────────
+function _fmtCardStats(stats) {
+  if (!stats) return '';
+  const parts = [];
+  if (stats.distance_miles != null) parts.push(`<span class="stat-val">${stats.distance_miles.toFixed(1)}</span> mi`);
+  if (stats.avg_speed_mph != null)  parts.push(`avg <span class="stat-val">${Math.round(stats.avg_speed_mph)}</span> mph`);
+  if (stats.openpilot_active_min != null) parts.push(`OP <span class="stat-val">${stats.openpilot_active_min.toFixed(0)}</span>m`);
+  return parts.join(' · ');
+}
+
+function _statTile(label, value, unit, index) {
+  return `
+    <div class="stat-tile" style="--i:${index}">
+      <div class="stat-tile-label">${escHtml(label)}</div>
+      <div class="stat-tile-value">${escHtml(String(value))}${unit ? `<span class="stat-tile-unit">${escHtml(unit)}</span>` : ''}</div>
+    </div>`;
+}
+
+function _renderStatsGrid(stats) {
+  if (!stats) return '';
+  const tiles = [
+    _statTile('Distance', stats.distance_miles != null ? stats.distance_miles.toFixed(1) : '—', 'mi', 0),
+    _statTile('Avg Speed', stats.avg_speed_mph != null ? Math.round(stats.avg_speed_mph) : '—', 'mph', 1),
+    _statTile('Max Speed', stats.max_speed_mph != null ? Math.round(stats.max_speed_mph) : '—', 'mph', 2),
+    _statTile('OP Active', stats.openpilot_active_min != null ? stats.openpilot_active_min.toFixed(1) : '—', 'min', 3),
+    _statTile('Disengaged', stats.disengagements != null ? stats.disengagements : '—', '', 4),
+  ].join('');
+  return `<div class="stats-grid">${tiles}</div>`;
+}
+
 // ── Recordings: helpers ───────────────────────────────────────────────────
 let _sessionsMap = new Map();
 
@@ -240,6 +270,7 @@ function _renderCard(session) {
       </div>
       <div class="rec-info">
         <div class="rec-title">${escHtml(session.start_label)}</div>
+        ${session.stats ? `<div class="rec-stats">${_fmtCardStats(session.stats)}</div>` : ''}
       </div>
     </div>
   `;
@@ -327,6 +358,8 @@ document.getElementById('date-filter-clear').addEventListener('click', () => {
 });
 
 // ── Modal ─────────────────────────────────────────────────────────────────
+let _leafletMap = null;
+
 function openModal(session) {
   const video = session.stitched_path ? `
     <video controls autoplay class="modal-video"
@@ -341,22 +374,52 @@ function openModal(session) {
     </a>`;
   }).join('');
 
+  const stats = session.stats;
+  const hasRoute = stats && stats.route_points && stats.route_points.length > 1;
+  const mapHtml = hasRoute ? '<div id="route-map"></div>' : '';
+
   document.getElementById('modal-content').innerHTML = `
     ${video}
     <div class="modal-title">${escHtml(session.start_label)} · ${session.duration_min} min · ${session.segments.length} segment${session.segments.length === 1 ? '' : 's'}</div>
+    ${_renderStatsGrid(stats)}
+    ${mapHtml}
     ${downloads ? `<div class="modal-downloads"><div class="modal-section-label">Downloads</div><div class="dl-row">${downloads}</div></div>` : ''}
   `;
+
   document.getElementById('rec-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+
+  if (hasRoute) {
+    requestAnimationFrame(() => _initRouteMap(stats.route_points, stats.gps_start, stats.gps_end));
+  }
+}
+
+function _initRouteMap(points, gpsStart, gpsEnd) {
+  if (typeof L === 'undefined') return;
+  if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; }
+  const mapEl = document.getElementById('route-map');
+  if (!mapEl) return;
+  _leafletMap = L.map(mapEl, { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd',
+  }).addTo(_leafletMap);
+
+  const line = L.polyline(points, { color: '#f59e0b', weight: 2.5, opacity: 0.85 }).addTo(_leafletMap);
+  _leafletMap.fitBounds(line.getBounds(), { padding: [20, 20] });
+
+  const dotStyle = { radius: 5, weight: 1.5, opacity: 1, fillOpacity: 0.9 };
+  if (gpsStart) L.circleMarker(gpsStart, { ...dotStyle, color: '#16a34a', fillColor: '#22c55e' }).addTo(_leafletMap);
+  if (gpsEnd)   L.circleMarker(gpsEnd,   { ...dotStyle, color: '#b91c1c', fillColor: '#ef4444' }).addTo(_leafletMap);
 }
 
 function closeModal() {
   const modal = document.getElementById('rec-modal');
   modal.classList.add('hidden');
   document.body.style.overflow = '';
-  // Stop video playback
   const video = modal.querySelector('video');
   if (video) { video.pause(); video.src = ''; }
+  if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; }
 }
 
 document.getElementById('modal-close').addEventListener('click', closeModal);

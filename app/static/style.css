@@ -648,6 +648,99 @@ nav { display: flex; gap: 2px; }
 .log-level { font-weight: 500; }
 .log-msg   { color: #a8b8d0; word-break: break-all; }
 
+/* ── Card stats line ─────────────────────────────────────────────────────── */
+.rec-stats {
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rec-stats .stat-val {
+  color: #8fa3c0;
+}
+
+/* ── Modal stats grid ────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-tile {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  padding: 9px 12px 10px;
+  animation: stat-in 0.22s ease-out both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+@keyframes stat-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stat-tile-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.stat-tile-value {
+  font-family: var(--font-ui);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.stat-tile-unit {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 3px;
+  font-weight: 400;
+}
+
+/* ── Route map ───────────────────────────────────────────────────────────── */
+#route-map {
+  height: 240px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+/* Leaflet overrides to match dark theme */
+.leaflet-container {
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+}
+
+.leaflet-control-zoom a {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--surface-3) !important;
+  color: var(--text-bright) !important;
+}
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .app-header {
@@ -666,5 +759,9 @@ nav { display: flex; gap: 2px; }
   .recordings-grid {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 10px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

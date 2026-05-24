@@ -93,6 +93,16 @@ def _sync_worker(config: AppConfig) -> None:
         from stitching import stitch_all
         from cleanup import cleanup_old_sessions
         from starred import load_starred
+        from comma_stats import update_all_stats
+
+        stats_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _broadcast(f"[{stats_ts}] Computing drive stats...\n")
+        try:
+            update_all_stats(config.local_path)
+        except Exception as exc:
+            _broadcast(f"  Stats error: {exc}\n")
+        stats_done = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _broadcast(f"[{stats_done}] Stats complete.\n")
 
         stitch_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{stitch_ts}] Stitching sessions...\n")

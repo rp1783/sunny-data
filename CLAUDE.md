@@ -42,8 +42,11 @@ docker build -t sunny-data:latest .
 | `cleanup.py` | Deletes raw segments and stitched files for sessions older than 30 days that aren't starred |
 | `starred.py` | Persists starred session names to `DATA_DIR/starred.json` |
 | `log_buffer.py` | In-memory ring buffer for structured log capture, exposed at `/api/logs` |
+| `comma_stats.py` | Parses `qlog.zst` files (via pycapnp + zstandard) to extract per-session drive stats (distance, speed, OP active time, GPS route); caches results in `DATA_DIR/stats_cache.json` |
 
-**Frontend** — Single-page app in `app/static/` (plain HTML/CSS/JS, no build step). The FastAPI static mount serves it as a fallback after all API routes.
+**Frontend** — Single-page app in `app/static/` (plain HTML/CSS/JS, no build step). The FastAPI static mount serves it as a fallback after all API routes. Leaflet is loaded from CDN for the route map in session modals.
+
+**Cereal schemas** — vendored in `schemas/` from sunnypilot `release-mici`. Includes `log.capnp`, `car.capnp`, `custom.capnp`, `deprecated.capnp`, and `include/c++.capnp`. pycapnp requires `libcapnp-dev` + `build-essential` in the Docker image.
 
 **Recordings layout** — Two layouts are auto-detected at runtime:
 - Nested: `/recordings/realdata/<session>/<segment_index>/` (original Comma device layout)

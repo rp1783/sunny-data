@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from collections import defaultdict
@@ -5,6 +6,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from starred import load_starred
+
+_log = logging.getLogger(__name__)
 
 
 def _fmt_time(dt: datetime) -> str:
@@ -146,6 +149,8 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern, starred: 
                 "files": _order_files(raw_files),
             })
         max_seg_index = segs_sorted[-1][0]
+        seg_paths = [seg["path"] for seg in segments]
+        stats = _safe_get_stats(str(base.parent), session_name, seg_paths)
         sessions.append({
             "session": session_name,
             "start_label": _fmt_time(start_dt),
@@ -155,10 +160,20 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern, starred: 
             "thumbnail_path": _thumbnail_path(base, session_name),
             "downloads": _session_downloads(base, session_name),
             "starred": session_name in starred,
+            "stats": stats,
             "start_dt": start_dt,
         })
 
     return _group_sessions_by_date(sessions)
+
+
+def _safe_get_stats(local_path: str, session_name: str, segment_paths: list[str]) -> dict | None:
+    try:
+        from comma_stats import get_or_compute_stats
+        return get_or_compute_stats(local_path, session_name, segment_paths)
+    except Exception as exc:
+        _log.debug("Stats unavailable for %s: %s", session_name, exc)
+        return None
 
 
 def _build_nested(base: Path, top_dirs: list[Path], starred: set[str]) -> list:
@@ -187,6 +202,8 @@ def _build_nested(base: Path, top_dirs: list[Path], starred: set[str]) -> list:
                 "time_label": _fmt_time_range(seg_dt),
                 "files": _order_files(raw_files),
             })
+        seg_paths = [seg["path"] for seg in segments]
+        stats = _safe_get_stats(str(base.parent), session_dir.name, seg_paths)
         sessions.append({
             "session": session_dir.name,
             "start_label": _fmt_time(start_dt),
@@ -196,6 +213,7 @@ def _build_nested(base: Path, top_dirs: list[Path], starred: set[str]) -> list:
             "thumbnail_path": _thumbnail_path(base, session_dir.name),
             "downloads": _session_downloads(base, session_dir.name),
             "starred": session_dir.name in starred,
+            "stats": stats,
             "start_dt": start_dt,
         })
 
