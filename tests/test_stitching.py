@@ -31,6 +31,7 @@ def test_stitch_session_runs_ffmpeg(tmp_path):
     stitch_call = mock_run.call_args_list[0][0][0]
     assert "ffmpeg" in stitch_call
     assert "-f" in stitch_call and "concat" in stitch_call
+    assert "libx264" in stitch_call
     assert str(tmp_path / "stitched" / "abc--def--fcamera.mp4") in stitch_call
 
 
@@ -44,9 +45,11 @@ def test_stitch_session_creates_stitched_dir(tmp_path):
     assert (tmp_path / "stitched").is_dir()
 
 
-def _write_faststart_mp4(path: Path) -> None:
-    """Write a minimal MP4 with moov before mdat so _has_faststart returns True."""
-    moov = b"\x00\x00\x00\x08moov"
+def _write_faststart_h264_mp4(path: Path) -> None:
+    """Write a minimal H.264 MP4: moov (with avc1) before mdat."""
+    # moov contains avc1 codec marker so _mp4_status sees H.264, not HEVC
+    inner = b"\x00\x00\x00\x0cavc1fake"
+    moov = (8 + len(inner)).to_bytes(4, "big") + b"moov" + inner
     mdat = b"\x00\x00\x00\x08mdat"
     path.write_bytes(moov + mdat)
 
@@ -56,7 +59,7 @@ def test_stitch_session_skips_when_output_newer(tmp_path):
     out_dir = tmp_path / "stitched"
     out_dir.mkdir()
     out = out_dir / "abc--def--fcamera.mp4"
-    _write_faststart_mp4(out)
+    _write_faststart_h264_mp4(out)
     (out_dir / "abc--def.jpg").write_text("jpg")
     future = time.time() + 3600
     os.utime(out, (future, future))

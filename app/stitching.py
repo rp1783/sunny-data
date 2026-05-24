@@ -16,7 +16,8 @@ def _concat_files(src_files: list[Path], out_file: Path, timeout: int = 600) -> 
     try:
         result = subprocess.run(
             ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", filelist,
-             "-c", "copy", "-movflags", "+faststart", str(out_file)],
+             "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+             "-movflags", "+faststart", str(out_file)],
             capture_output=True,
             timeout=timeout,
         )
@@ -47,31 +48,41 @@ def _generate_thumbnail(mp4_path: Path, jpg_path: Path) -> None:
         _log.warning("Thumbnail generation failed for %s: %s", mp4_path.name, exc)
 
 
-def _has_faststart(mp4: Path) -> bool:
-    """Return True if the moov atom appears before the mdat atom."""
+def _mp4_status(mp4: Path) -> tuple[bool, bool]:
+    """Return (has_faststart, is_hevc) by scanning the top-level MP4 atoms."""
+    has_faststart = False
+    is_hevc = False
     try:
         with mp4.open("rb") as fh:
-            while True:
-                size_bytes = fh.read(4)
-                if len(size_bytes) < 4:
-                    return False
-                size = int.from_bytes(size_bytes, "big")
-                name = fh.read(4)
-                if name == b"moov":
-                    return True
-                if name == b"mdat":
-                    return False
-                if size < 8:
-                    return False
-                fh.seek(size - 8, 1)
+            data = fh.read(65536)
+        pos = 0
+        seen_moov = False
+        seen_mdat = False
+        while pos + 8 <= len(data):
+            size = int.from_bytes(data[pos:pos+4], "big")
+            name = data[pos+4:pos+8]
+            if name == b"moov":
+                seen_moov = True
+                # Scan moov contents for hvc1/hev1 codec box
+                moov_end = min(pos + size, len(data))
+                if b"hvc1" in data[pos:moov_end] or b"hev1" in data[pos:moov_end]:
+                    is_hevc = True
+            elif name == b"mdat":
+                seen_mdat = True
+            if size < 8:
+                break
+            pos += size
+        has_faststart = seen_moov and not seen_mdat or (seen_moov and data.index(b"moov") < data.index(b"mdat") if b"moov" in data and b"mdat" in data else False)
     except OSError:
-        return False
+        pass
+    return has_faststart, is_hevc
 
 
 def _needs_stitch(out_file: Path, src_files: list[Path]) -> bool:
     if not out_file.exists():
         return True
-    if not _has_faststart(out_file):
+    faststart, is_hevc = _mp4_status(out_file)
+    if not faststart or is_hevc:
         return True
     out_mtime = out_file.stat().st_mtime
     return any(f.stat().st_mtime > out_mtime for f in src_files)
