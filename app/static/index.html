@@ -6,17 +6,26 @@
   <title>CommaCam</title>
   <link rel="icon" href="/favicon-light.png" media="(prefers-color-scheme: light)">
   <link rel="icon" href="/favicon-dark.png" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Azeret+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div id="banner" class="banner hidden"></div>
 
-  <nav>
-    <button class="tab-btn active" data-tab="recordings">Recordings</button>
-    <button class="tab-btn" data-tab="sync">Sync</button>
-    <button class="tab-btn" data-tab="logs">Logs</button>
-    <button class="tab-btn" data-tab="settings">Settings</button>
-  </nav>
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-name">CommaCam</span>
+      <span class="brand-rec">● REC</span>
+    </div>
+    <nav>
+      <button class="tab-btn active" data-tab="recordings">Recordings</button>
+      <button class="tab-btn" data-tab="sync">Sync</button>
+      <button class="tab-btn" data-tab="logs">Logs</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+  </header>
 
   <div id="tab-recordings" class="tab-panel">
     <div class="recordings-controls">

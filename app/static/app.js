@@ -335,7 +335,7 @@ function openModal(session) {
 
   const downloads = (session.downloads || []).map(d => {
     const fname = d.path.split('/').pop();
-    return `<a class="dl-pill" style="color:#86efac;border-color:#86efac"
+    return `<a class="dl-pill" style="color:#f59e0b;border-color:rgba(245,158,11,0.4)"
        href="/files/${escHtml(d.path)}" download="${escHtml(fname)}">
       ⬇ ${escHtml(d.label)}
     </a>`;
