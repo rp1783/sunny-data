@@ -3,6 +3,9 @@ from pathlib import Path
 import config as config_mod
 from config import AppConfig, load_config, save_config, save_ssh_key, is_config_complete
 
+_cfg = dict(device_ip="10.0.0.1", device_user="comma", ssh_port=22,
+            remote_path="/data/", local_path="/recordings")
+
 
 def test_load_config_returns_none_when_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(config_mod, "DATA_DIR", tmp_path)
@@ -11,15 +14,11 @@ def test_load_config_returns_none_when_missing(tmp_path, monkeypatch):
 
 def test_save_and_load_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(config_mod, "DATA_DIR", tmp_path)
-    cfg = AppConfig(
-        device_ip="10.0.0.1", device_user="comma", ssh_port=22,
-        remote_path="/data/", local_path="/recordings", schedule="0 * * * *",
-    )
+    cfg = AppConfig(**_cfg)
     save_config(cfg)
     loaded = load_config()
     assert loaded is not None
     assert loaded.device_ip == "10.0.0.1"
-    assert loaded.schedule == "0 * * * *"
 
 
 def test_load_config_returns_none_on_corrupt_json(tmp_path, monkeypatch):
@@ -41,16 +40,8 @@ def test_is_config_complete_false_when_none():
 
 
 def test_is_config_complete_false_when_empty_ip():
-    cfg = AppConfig(
-        device_ip="", device_user="comma", ssh_port=22,
-        remote_path="/data/", local_path="/recordings", schedule="0 * * * *",
-    )
-    assert not is_config_complete(cfg)
+    assert not is_config_complete(AppConfig(**{**_cfg, "device_ip": ""}))
 
 
 def test_is_config_complete_true_when_all_set():
-    cfg = AppConfig(
-        device_ip="10.0.0.1", device_user="comma", ssh_port=22,
-        remote_path="/data/", local_path="/recordings", schedule="0 * * * *",
-    )
-    assert is_config_complete(cfg)
+    assert is_config_complete(AppConfig(**_cfg))

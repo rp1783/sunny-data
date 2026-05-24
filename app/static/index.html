@@ -54,26 +54,7 @@
         <textarea name="ssh_key" placeholder="Paste private key content here. Leave blank to keep existing key."></textarea>
       </label>
 
-      <fieldset>
-        <legend>Schedule</legend>
-        <div id="schedule-simple" class="schedule-row">
-          <span>Every</span>
-          <input id="interval-value" type="number" min="1" max="60" value="1">
-          <select id="interval-unit">
-            <option value="hours">hours</option>
-            <option value="minutes">minutes</option>
-          </select>
-        </div>
-        <button type="button" id="toggle-advanced">Advanced ▾</button>
-        <div id="schedule-advanced" class="hidden">
-          <label>Cron expression
-            <input name="schedule" type="text" placeholder="0 * * * *">
-          </label>
-          <div id="cron-preview" class="hint"></div>
-        </div>
-      </fieldset>
-
-      <div id="settings-error" class="error hidden"></div>
+<div id="settings-error" class="error hidden"></div>
       <button type="submit">Save Settings</button>
     </form>
   </div>

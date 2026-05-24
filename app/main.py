@@ -1,11 +1,7 @@
 import logging as _logging
 import threading
-from contextlib import asynccontextmanager
 from pathlib import Path
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
-from croniter import croniter
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,37 +21,7 @@ from sync import get_last_sync, is_sync_running, run_sync, sse_generator
 
 _log = _logging.getLogger(__name__)
 
-scheduler = BackgroundScheduler()
-
-
-def _scheduled_sync() -> None:
-    config = load_config()
-    if config and is_config_complete(config):
-        try:
-            run_sync(config)
-        except RuntimeError:
-            _log.warning("Scheduled sync skipped — sync already in progress")
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    scheduler.start()
-    config = load_config()
-    if config and is_config_complete(config):
-        try:
-            scheduler.add_job(
-                _scheduled_sync,
-                CronTrigger.from_crontab(config.schedule),
-                id="sync_job",
-                replace_existing=True,
-            )
-        except Exception:
-            _log.warning("Saved schedule %r is invalid — sync job not scheduled", config.schedule)
-    yield
-    scheduler.shutdown()
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 
 class ConfigPayload(BaseModel):
@@ -64,7 +30,6 @@ class ConfigPayload(BaseModel):
     ssh_port: int
     remote_path: str
     local_path: str
-    schedule: str
 
 
 class SshKeyPayload(BaseModel):
@@ -83,16 +48,8 @@ def get_config():
 
 @app.post("/api/config")
 def post_config(payload: ConfigPayload):
-    if not croniter.is_valid(payload.schedule):
-        raise HTTPException(status_code=422, detail="Invalid cron expression")
     config = AppConfig(**payload.model_dump())
     save_config(config)
-    scheduler.add_job(
-        _scheduled_sync,
-        CronTrigger.from_crontab(config.schedule),
-        id="sync_job",
-        replace_existing=True,
-    )
     return {"ok": True}
 
 

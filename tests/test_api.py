@@ -13,6 +13,12 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
+_base_payload = {
+    "device_ip": "10.0.0.1", "device_user": "comma", "ssh_port": 22,
+    "remote_path": "/data/", "local_path": "/recordings",
+}
+
+
 def test_get_config_empty_before_setup(client):
     res = client.get("/api/config")
     assert res.status_code == 200
@@ -20,25 +26,11 @@ def test_get_config_empty_before_setup(client):
 
 
 def test_post_and_get_config_roundtrip(client):
-    payload = {
-        "device_ip": "10.0.0.1", "device_user": "comma", "ssh_port": 22,
-        "remote_path": "/data/", "local_path": "/recordings", "schedule": "0 * * * *",
-    }
-    res = client.post("/api/config", json=payload)
+    res = client.post("/api/config", json=_base_payload)
     assert res.status_code == 200
     assert res.json() == {"ok": True}
     res2 = client.get("/api/config")
     assert res2.json()["device_ip"] == "10.0.0.1"
-    assert res2.json()["schedule"] == "0 * * * *"
-
-
-def test_post_config_rejects_invalid_cron(client):
-    payload = {
-        "device_ip": "10.0.0.1", "device_user": "comma", "ssh_port": 22,
-        "remote_path": "/data/", "local_path": "/recordings", "schedule": "not-a-cron",
-    }
-    res = client.post("/api/config", json=payload)
-    assert res.status_code == 422
 
 
 def test_post_ssh_key_saves_file(client, tmp_path, monkeypatch):
@@ -73,8 +65,7 @@ def test_sync_run_returns_400_when_config_missing(client):
 def test_sync_status_returns_not_running(client):
     res = client.get("/api/sync/status")
     assert res.status_code == 200
-    data = res.json()
-    assert data["running"] is False
+    assert res.json()["running"] is False
 
 
 def test_get_recordings_empty_when_no_config(client):
@@ -85,21 +76,13 @@ def test_get_recordings_empty_when_no_config(client):
 
 def test_serve_file_returns_404_for_missing_file(client, tmp_path, monkeypatch):
     monkeypatch.setattr(config_mod, "DATA_DIR", tmp_path)
-    payload = {
-        "device_ip": "10.0.0.1", "device_user": "comma", "ssh_port": 22,
-        "remote_path": "/data/", "local_path": str(tmp_path), "schedule": "0 * * * *",
-    }
-    client.post("/api/config", json=payload)
+    client.post("/api/config", json={**_base_payload, "local_path": str(tmp_path)})
     res = client.get("/files/realdata/nosession/0/qcamera.ts")
     assert res.status_code == 404
 
 
 def test_serve_file_blocks_path_traversal(client, tmp_path, monkeypatch):
     monkeypatch.setattr(config_mod, "DATA_DIR", tmp_path)
-    payload = {
-        "device_ip": "10.0.0.1", "device_user": "comma", "ssh_port": 22,
-        "remote_path": "/data/", "local_path": str(tmp_path), "schedule": "0 * * * *",
-    }
-    client.post("/api/config", json=payload)
+    client.post("/api/config", json={**_base_payload, "local_path": str(tmp_path)})
     res = client.get("/files/../etc/passwd")
     assert res.status_code in (404, 403, 422)

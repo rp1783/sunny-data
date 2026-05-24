@@ -16,7 +16,6 @@ class AppConfig(BaseModel):
     ssh_port: int = 22
     remote_path: str = "/data/media/0/realdata/"
     local_path: str = "/recordings"
-    schedule: str = "0 * * * *"
 
 
 def config_path() -> Path:
@@ -61,5 +60,4 @@ def is_config_complete(config: AppConfig | None) -> bool:
         and config.device_user
         and config.remote_path
         and config.local_path
-        and config.schedule
     )

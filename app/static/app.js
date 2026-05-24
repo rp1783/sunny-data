@@ -29,79 +29,6 @@ function hideBanner() {
   document.getElementById('banner').classList.add('hidden');
 }
 
-// ── Schedule helpers ──────────────────────────────────────────────────────
-function simpleToCron() {
-  const n = parseInt(document.getElementById('interval-value').value, 10) || 1;
-  const unit = document.getElementById('interval-unit').value;
-  if (unit === 'hours') {
-    return n >= 24 ? '0 0 * * *' : (n === 1 ? '0 * * * *' : `0 */${n} * * *`);
-  }
-  return n === 1 ? '* * * * *' : `*/${n} * * * *`;
-}
-
-function cronToHuman(cron) {
-  if (!cron) return '';
-  const hourly = cron.match(/^0 \*\/(\d+) \* \* \*$/);
-  const minutely = cron.match(/^\*\/(\d+) \* \* \* \*$/);
-  if (cron === '0 * * * *') return 'Runs every hour';
-  if (cron === '* * * * *') return 'Runs every minute';
-  if (cron === '0 0 * * *') return 'Runs every 24 hours (daily at midnight)';
-  if (hourly) return `Runs every ${hourly[1]} hour(s)`;
-  if (minutely) return `Runs every ${minutely[1]} minute(s)`;
-  return `Schedule: ${cron}`;
-}
-
-function updateCronPreview(cron) {
-  document.getElementById('cron-preview').textContent = cronToHuman(cron);
-}
-
-function syncScheduleInputFromSimple() {
-  const cron = simpleToCron();
-  document.querySelector('[name="schedule"]').value = cron;
-  updateCronPreview(cron);
-}
-
-function applyScheduleToForm(schedule) {
-  const scheduleInput = document.querySelector('[name="schedule"]');
-  scheduleInput.value = schedule;
-  updateCronPreview(schedule);
-
-  const hourly = schedule.match(/^0 \*\/(\d+) \* \* \*$/);
-  const minutely = schedule.match(/^\*\/(\d+) \* \* \* \*$/);
-  if (schedule === '0 * * * *') {
-    document.getElementById('interval-value').value = 1;
-    document.getElementById('interval-unit').value = 'hours';
-  } else if (schedule === '0 0 * * *') {
-    document.getElementById('interval-value').value = 24;
-    document.getElementById('interval-unit').value = 'hours';
-  } else if (hourly) {
-    document.getElementById('interval-value').value = hourly[1];
-    document.getElementById('interval-unit').value = 'hours';
-  } else if (minutely) {
-    document.getElementById('interval-value').value = minutely[1];
-    document.getElementById('interval-unit').value = 'minutes';
-  } else {
-    document.getElementById('schedule-advanced').classList.remove('hidden');
-    document.getElementById('toggle-advanced').textContent = 'Simple ▴';
-  }
-}
-
-document.getElementById('interval-value').addEventListener('input', syncScheduleInputFromSimple);
-document.getElementById('interval-unit').addEventListener('change', syncScheduleInputFromSimple);
-
-document.querySelector('[name="schedule"]').addEventListener('input', e => {
-  updateCronPreview(e.target.value);
-});
-
-document.getElementById('toggle-advanced').addEventListener('click', () => {
-  const adv = document.getElementById('schedule-advanced');
-  const open = adv.classList.toggle('hidden');
-  document.getElementById('toggle-advanced').textContent = open ? 'Advanced ▾' : 'Simple ▴';
-  if (!open) {
-    // Switching to advanced: ensure input reflects current simple value
-    syncScheduleInputFromSimple();
-  }
-});
 
 // ── Config load/save ──────────────────────────────────────────────────────
 async function loadConfig() {
@@ -119,7 +46,6 @@ async function loadConfig() {
       const el = form.elements[k];
       if (el && cfg[k] != null) el.value = cfg[k];
     });
-    if (cfg.schedule) applyScheduleToForm(cfg.schedule);
     if (cfg.ssh_key_set) {
       document.querySelector('[name="ssh_key"]').placeholder =
         'SSH key is set. Paste a new key here only if you want to replace it.';
@@ -152,18 +78,12 @@ document.getElementById('settings-form').addEventListener('submit', async e => {
     form.elements['ssh_key'].value = '';
   }
 
-  const advOpen = !document.getElementById('schedule-advanced').classList.contains('hidden');
-  const schedule = advOpen
-    ? (form.elements['schedule'].value.trim() || simpleToCron())
-    : simpleToCron();
-
   const payload = {
     device_ip: form.elements['device_ip'].value.trim(),
     device_user: form.elements['device_user'].value.trim(),
     ssh_port: parseInt(form.elements['ssh_port'].value, 10),
     remote_path: form.elements['remote_path'].value.trim(),
     local_path: form.elements['local_path'].value.trim(),
-    schedule,
   };
 
   const res = await fetch('/api/config', {
