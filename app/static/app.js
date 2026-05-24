@@ -295,7 +295,17 @@ async function loadRecordings() {
   }
 }
 
-document.getElementById('date-filter').addEventListener('change', _renderRecordings);
+document.getElementById('date-filter').addEventListener('change', () => {
+  const hasValue = !!document.getElementById('date-filter').value;
+  document.getElementById('date-filter-clear').classList.toggle('hidden', !hasValue);
+  _renderRecordings();
+});
+
+document.getElementById('date-filter-clear').addEventListener('click', () => {
+  document.getElementById('date-filter').value = '';
+  document.getElementById('date-filter-clear').classList.add('hidden');
+  _renderRecordings();
+});
 
 // ── Modal ─────────────────────────────────────────────────────────────────
 function openModal(session) {

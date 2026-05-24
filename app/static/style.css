@@ -172,7 +172,7 @@ legend { padding: 0 6px; color: #aaa; font-size: 13px; }
 
 .date-group { margin-bottom: 32px; }
 
-.date-filter-select {
+.date-filter-input {
   padding: 6px 10px;
   background: #1e2130;
   border: 1px solid #353a52;
@@ -180,8 +180,20 @@ legend { padding: 0 6px; color: #aaa; font-size: 13px; }
   color: #e0e0e0;
   font-size: 13px;
   cursor: pointer;
+  color-scheme: dark;
 }
-.date-filter-select:focus { outline: none; border-color: #3b5bdb; }
+.date-filter-input:focus { outline: none; border-color: #3b5bdb; }
+
+.date-filter-clear {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid #353a52;
+  border-radius: 4px;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+}
+.date-filter-clear:hover { color: #e0e0e0; border-color: #6b7280; }
 
 .date-header {
   font-size: 1rem;
