@@ -28,9 +28,13 @@ def stitch_session(
     if not ts_files:
         return "skipped"
 
+    jpg_path = out_dir / f"{session_name}.jpg"
+
     if out_file.exists():
         out_mtime = out_file.stat().st_mtime
         if all(out_mtime > f.stat().st_mtime for f in ts_files):
+            if not jpg_path.exists():
+                _generate_thumbnail(out_file, jpg_path)
             return "skipped"
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as fh:
@@ -56,7 +60,7 @@ def stitch_session(
                 result.stderr.decode(errors="replace")[-500:],
             )
             return "error"
-        _generate_thumbnail(out_file, out_dir / f"{session_name}.jpg")
+        _generate_thumbnail(out_file, jpg_path)
         return "stitched"
     except Exception as exc:
         _log.warning("stitch_session failed for %s: %s", session_name, exc)

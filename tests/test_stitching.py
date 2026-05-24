@@ -51,7 +51,7 @@ def test_stitch_session_skips_when_output_newer(tmp_path):
     out_dir.mkdir()
     out = out_dir / "abc--def.mp4"
     out.write_text("mp4")
-    # Make output newer than segment
+    (out_dir / "abc--def.jpg").write_text("jpg")  # thumbnail already exists
     future = time.time() + 3600
     os.utime(out, (future, future))
     os.utime(seg, (future - 7200, future - 7200))
