@@ -18,9 +18,21 @@ def _fmt_date_label(dt: datetime) -> str:
     return dt.strftime("%A, %B %-d")
 
 
+_PLAYER_PRIORITY = ["fcamera", "ecamera", "dcamera"]
+
+
 def _stitched_path(base: Path, session_name: str) -> str | None:
-    out = base.parent / "stitched" / f"{session_name}.mp4"
-    return f"stitched/{session_name}.mp4" if out.exists() else None
+    """Return the best available stitched video path for the player."""
+    out_dir = base.parent / "stitched"
+    # Prefer higher-quality cameras
+    for camera in _PLAYER_PRIORITY:
+        f = out_dir / f"{session_name}--{camera}.mp4"
+        if f.exists():
+            return f"stitched/{f.name}"
+    # Fall back to any stitched camera
+    for f in sorted(out_dir.glob(f"{session_name}--*.mp4")):
+        return f"stitched/{f.name}"
+    return None
 
 
 def _thumbnail_path(base: Path, session_name: str) -> str | None:
@@ -38,9 +50,6 @@ _CAMERA_LABELS = {
 def _session_downloads(base: Path, session_name: str) -> list[dict]:
     out_dir = base.parent / "stitched"
     result = []
-    main = out_dir / f"{session_name}.mp4"
-    if main.exists():
-        result.append({"label": "Dashcam", "path": f"stitched/{session_name}.mp4"})
     for f in sorted(out_dir.glob(f"{session_name}--*.mp4")):
         camera = f.stem[len(session_name) + 2:]
         label = _CAMERA_LABELS.get(camera, camera)

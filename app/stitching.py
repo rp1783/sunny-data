@@ -48,11 +48,14 @@ def _generate_thumbnail(mp4_path: Path, jpg_path: Path) -> None:
 
 
 def _needs_stitch(out_file: Path, src_files: list[Path]) -> bool:
-    """Return True if out_file is missing or older than any src file."""
     if not out_file.exists():
         return True
     out_mtime = out_file.stat().st_mtime
     return any(f.stat().st_mtime > out_mtime for f in src_files)
+
+
+# Preferred camera order for thumbnail selection
+_THUMB_PRIORITY = ["fcamera", "ecamera", "dcamera"]
 
 
 def stitch_session(
@@ -60,13 +63,10 @@ def stitch_session(
     session_name: str,
     segment_paths: list[str],
 ) -> str:
-    """Stitch all camera streams for a session.
+    """Stitch all HEVC camera streams for a session.
 
-    Produces:
-      stitched/{session}.mp4          — qcamera.ts
-      stitched/{session}--fcamera.mp4 — fcamera.hevc (if present)
-      stitched/{session}--ecamera.mp4 — ecamera.hevc (if present)
-      stitched/{session}.jpg          — thumbnail from main video
+    Produces stitched/{session}--{camera}.mp4 for each HEVC stream found,
+    plus stitched/{session}.jpg thumbnail (from fcamera if available).
 
     Returns 'stitched', 'skipped', or 'error'.
     """
@@ -74,31 +74,19 @@ def stitch_session(
     out_dir = base / "stitched"
     out_dir.mkdir(exist_ok=True)
 
-    # ── qcamera (main video) ──────────────────────────────────────────────
-    ts_files = [base / p / "qcamera.ts" for p in segment_paths]
-    ts_files = [f for f in ts_files if f.exists()]
-
-    if not ts_files:
-        return "skipped"
-
-    main_mp4 = out_dir / f"{session_name}.mp4"
-    jpg_path = out_dir / f"{session_name}.jpg"
-    did_stitch = False
-
-    if _needs_stitch(main_mp4, ts_files):
-        if not _concat_files(ts_files, main_mp4):
-            return "error"
-        did_stitch = True
-
-    if not jpg_path.exists():
-        _generate_thumbnail(main_mp4, jpg_path)
-
-    # ── HEVC cameras ──────────────────────────────────────────────────────
+    # Discover all HEVC camera streams present across segments
     hevc_names: set[str] = set()
     for p in segment_paths:
         for f in (base / p).iterdir():
             if f.suffix == ".hevc":
                 hevc_names.add(f.name)
+
+    if not hevc_names:
+        return "skipped"
+
+    did_stitch = False
+    had_error = False
+    stitched_cameras: dict[str, Path] = {}
 
     for hevc_name in sorted(hevc_names):
         camera = hevc_name.removesuffix(".hevc")
@@ -108,17 +96,30 @@ def stitch_session(
             continue
         out = out_dir / f"{session_name}--{camera}.mp4"
         if _needs_stitch(out, src):
-            _concat_files(src, out)
-            did_stitch = True
+            if _concat_files(src, out):
+                did_stitch = True
+            else:
+                had_error = True
+        if out.exists():
+            stitched_cameras[camera] = out
+
+    if had_error and not did_stitch:
+        return "error"
+
+    # Thumbnail from the highest-priority available camera
+    jpg_path = out_dir / f"{session_name}.jpg"
+    if not jpg_path.exists() and stitched_cameras:
+        thumb_src = next(
+            (stitched_cameras[c] for c in _THUMB_PRIORITY if c in stitched_cameras),
+            next(iter(stitched_cameras.values())),
+        )
+        _generate_thumbnail(thumb_src, jpg_path)
 
     return "stitched" if did_stitch else "skipped"
 
 
 def stitch_all(local_path: str, on_progress=None) -> dict[str, str]:
-    """Stitch all sessions found under local_path.
-
-    Returns {session_name: 'stitched'|'skipped'|'error'}.
-    """
+    """Stitch all sessions found under local_path."""
     from recordings import build_recording_tree
 
     tree = build_recording_tree(local_path)
