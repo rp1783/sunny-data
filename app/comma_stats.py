@@ -33,7 +33,9 @@ def _load_schema():
 
 
 def _parse_qlog(path: Path) -> dict:
-    """Decompress and iterate qlog.zst, returning aggregated raw samples."""
+    """Decompress qlog.zst to a temp file and iterate capnp messages."""
+    import os
+    import tempfile
     import zstandard as zstd
 
     schema = _load_schema()
@@ -44,13 +46,15 @@ def _parse_qlog(path: Path) -> dict:
     gps_points: list[tuple[float, float, float]] = []  # (lat, lon, accuracy)
     op_samples: list[tuple[int, bool]] = []         # (logMonoTime_ns, enabled)
 
+    tmp_path = None
     try:
         dctx = zstd.ZstdDecompressor()
-        with open(path, "rb") as fh:
-            data = dctx.decompress(fh.read(), max_output_size=256 * 1024 * 1024)
+        fd, tmp_path = tempfile.mkstemp(suffix=".capnp")
+        with os.fdopen(fd, "wb") as tmp_fh, open(path, "rb") as src_fh:
+            dctx.copy_stream(src_fh, tmp_fh)
 
-        with _capnp.BufferedData(data) as buf:
-            for msg in schema.Event.read_multiple(buf):
+        with open(tmp_path, "rb") as fh:
+            for msg in schema.Event.read_multiple(fh):
                 mono = 0
                 try:
                     mono = msg.logMonoTime
@@ -80,6 +84,12 @@ def _parse_qlog(path: Path) -> dict:
 
     except Exception as exc:
         _log.debug("qlog parse error for %s: %s", path, exc)
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
     return {
         "speed_samples": speed_samples,
