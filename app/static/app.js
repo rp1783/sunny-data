@@ -234,6 +234,9 @@ function _renderCard(session) {
       <div class="rec-thumb-wrap">
         ${thumb}
         <span class="rec-duration">${session.duration_min} min</span>
+        <button class="star-btn${session.starred ? ' starred' : ''}" data-sid="${escHtml(session.session)}" title="${session.starred ? 'Unstar' : 'Star to protect from deletion'}">
+          ${session.starred ? '★' : '☆'}
+        </button>
       </div>
       <div class="rec-info">
         <div class="rec-title">${escHtml(session.start_label)}</div>
@@ -268,6 +271,22 @@ function _renderRecordings() {
     card.addEventListener('click', () => {
       const session = _sessionsMap.get(card.dataset.sid);
       if (session) openModal(session);
+    });
+  });
+  root.querySelectorAll('.star-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const sid = btn.dataset.sid;
+      const session = _sessionsMap.get(sid);
+      if (!session) return;
+      const nowStarred = !session.starred;
+      await fetch(`/api/star/${encodeURIComponent(sid)}`, {
+        method: nowStarred ? 'POST' : 'DELETE',
+      });
+      session.starred = nowStarred;
+      btn.textContent = nowStarred ? '★' : '☆';
+      btn.classList.toggle('starred', nowStarred);
+      btn.title = nowStarred ? 'Unstar' : 'Star to protect from deletion';
     });
   });
 }

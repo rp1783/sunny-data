@@ -253,6 +253,22 @@ legend { padding: 0 6px; color: #aaa; font-size: 13px; }
   padding: 2px 6px;
   border-radius: 4px;
 }
+.star-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0,0,0,0.6);
+  border: none;
+  color: #9ca3af;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.star-btn:hover { color: #fbbf24; background: rgba(0,0,0,0.8); }
+.star-btn.starred { color: #fbbf24; }
 .rec-info {
   padding: 10px 12px 12px;
 }

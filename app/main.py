@@ -17,6 +17,7 @@ from config import (
     ssh_key_path,
 )
 from recordings import build_recording_tree, resolve_file_path
+from starred import add_star, remove_star
 from stitching import stitch_all
 from sync import get_last_sync, is_sync_running, run_sync, sse_generator
 
@@ -99,6 +100,18 @@ def trigger_stitch():
         args=(config.local_path,),
         daemon=True,
     ).start()
+    return {"ok": True}
+
+
+@app.post("/api/star/{session}")
+def star_session(session: str):
+    add_star(session)
+    return {"ok": True}
+
+
+@app.delete("/api/star/{session}")
+def unstar_session(session: str):
+    remove_star(session)
     return {"ok": True}
 
 

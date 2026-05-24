@@ -4,6 +4,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from starred import load_starred
+
 
 def _fmt_time(dt: datetime) -> str:
     return dt.strftime("%-I:%M %p")
@@ -86,7 +88,7 @@ def _group_sessions_by_date(sessions: list[dict]) -> list[dict]:
     return result
 
 
-def build_recording_tree(local_path: str) -> list:
+def build_recording_tree(local_path: str, starred: set[str] | None = None) -> list:
     base = Path(local_path).resolve() / "realdata"
     if not base.exists():
         return []
@@ -97,15 +99,18 @@ def build_recording_tree(local_path: str) -> list:
     if not top_dirs:
         return []
 
+    if starred is None:
+        starred = load_starred()
+
     sample = top_dirs[0]
     has_nested = any(sub.is_dir() and sub.name.isdigit() for sub in sample.iterdir())
 
     if has_nested:
-        return _build_nested(base, top_dirs)
-    return _build_flat(base, top_dirs, flat_seg_pattern)
+        return _build_nested(base, top_dirs, starred)
+    return _build_flat(base, top_dirs, flat_seg_pattern, starred)
 
 
-def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
+def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern, starred: set[str]) -> list:
     groups: dict[str, list] = defaultdict(list)
     for d in top_dirs:
         m = pattern.match(d.name)
@@ -149,13 +154,14 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
             "stitched_path": _stitched_path(base, session_name),
             "thumbnail_path": _thumbnail_path(base, session_name),
             "downloads": _session_downloads(base, session_name),
+            "starred": session_name in starred,
             "start_dt": start_dt,
         })
 
     return _group_sessions_by_date(sessions)
 
 
-def _build_nested(base: Path, top_dirs: list[Path]) -> list:
+def _build_nested(base: Path, top_dirs: list[Path], starred: set[str]) -> list:
     sessions = []
     for session_dir in top_dirs:
         seg_dirs = sorted(
@@ -189,6 +195,7 @@ def _build_nested(base: Path, top_dirs: list[Path]) -> list:
             "stitched_path": _stitched_path(base, session_dir.name),
             "thumbnail_path": _thumbnail_path(base, session_dir.name),
             "downloads": _session_downloads(base, session_dir.name),
+            "starred": session_dir.name in starred,
             "start_dt": start_dt,
         })
 

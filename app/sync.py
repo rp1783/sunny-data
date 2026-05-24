@@ -91,12 +91,19 @@ def _sync_worker(config: AppConfig) -> None:
 
     if rc == 0:
         from stitching import stitch_all
+        from cleanup import cleanup_old_sessions
+        from starred import load_starred
 
         stitch_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{stitch_ts}] Stitching sessions...\n")
         stitch_all(config.local_path, on_progress=lambda m: _broadcast(f"  {m}\n"))
         done2 = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{done2}] Stitching complete.\n")
+
+        deleted = cleanup_old_sessions(config.local_path, load_starred())
+        if deleted:
+            clean_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            _broadcast(f"[{clean_ts}] Removed {len(deleted)} expired session(s).\n")
 
     _broadcast(None)  # sentinel — signals all SSE generators to stop
     _sync_running.clear()
