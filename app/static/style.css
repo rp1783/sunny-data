@@ -359,8 +359,8 @@ nav { display: flex; gap: 2px; }
 /* ── Card grid ───────────────────────────────────────────────────────────── */
 .recordings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 14px;
 }
 
 .rec-card {
@@ -464,7 +464,7 @@ nav { display: flex; gap: 2px; }
 }
 
 .rec-info {
-  padding: 9px 12px 11px;
+  padding: 11px 14px 13px;
   border-top: 1px solid var(--border);
 }
 
@@ -650,9 +650,9 @@ nav { display: flex; gap: 2px; }
 
 /* ── Card stats line ─────────────────────────────────────────────────────── */
 .rec-stats {
-  margin-top: 5px;
+  margin-top: 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -661,7 +661,7 @@ nav { display: flex; gap: 2px; }
 }
 
 .rec-stats .stat-val {
-  color: #8fa3c0;
+  color: #aabdd6;
 }
 
 /* ── Modal stats grid ────────────────────────────────────────────────────── */
@@ -741,6 +741,41 @@ nav { display: flex; gap: 2px; }
   color: var(--text-bright) !important;
 }
 
+.leaflet-popup-content-wrapper {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-hi) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+  color: var(--text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+  line-height: 1.5 !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--border-hi) !important;
+}
+
+.leaflet-popup-close-button {
+  display: none !important;
+}
+
+.map-popup-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 2px;
+}
+
+.map-popup-label.start { color: var(--success); }
+.map-popup-label.end   { color: var(--danger); }
+.map-popup-addr { color: var(--text-bright); max-width: 200px; }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .app-header {
@@ -757,7 +792,7 @@ nav { display: flex; gap: 2px; }
   .tab-panel { padding: 20px 14px; }
 
   .recordings-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 10px;
   }
 

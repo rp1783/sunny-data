@@ -394,6 +394,40 @@ function openModal(session) {
   }
 }
 
+async function _reverseGeocode(lat, lon) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address || {};
+    return [a.road, a.suburb || a.neighbourhood || a.city_district, a.city || a.town || a.village]
+      .filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 2).join(',').trim() || null;
+  } catch { return null; }
+}
+
+function _makeMarkerPopup(marker, label, cssClass, latLon) {
+  const placeholder = `<div class="map-popup-label ${cssClass}">${label}</div><div class="map-popup-addr">Looking up…</div>`;
+  const popup = L.popup({ offset: [0, -4], autoPan: false }).setContent(placeholder);
+  marker.bindPopup(popup);
+
+  let fetched = false;
+  marker.on('mouseover', function() {
+    this.openPopup();
+    if (fetched) return;
+    fetched = true;
+    _reverseGeocode(latLon[0], latLon[1]).then(addr => {
+      popup.setContent(
+        `<div class="map-popup-label ${cssClass}">${label}</div>` +
+        `<div class="map-popup-addr">${addr || 'Address unavailable'}</div>`
+      );
+    });
+  });
+  marker.on('mouseout', function() { this.closePopup(); });
+}
+
 function _initRouteMap(points, gpsStart, gpsEnd) {
   if (typeof L === 'undefined') return;
   if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; }
@@ -408,9 +442,15 @@ function _initRouteMap(points, gpsStart, gpsEnd) {
   const line = L.polyline(points, { color: '#f59e0b', weight: 2.5, opacity: 0.85 }).addTo(_leafletMap);
   _leafletMap.fitBounds(line.getBounds(), { padding: [20, 20] });
 
-  const dotStyle = { radius: 5, weight: 1.5, opacity: 1, fillOpacity: 0.9 };
-  if (gpsStart) L.circleMarker(gpsStart, { ...dotStyle, color: '#16a34a', fillColor: '#22c55e' }).addTo(_leafletMap);
-  if (gpsEnd)   L.circleMarker(gpsEnd,   { ...dotStyle, color: '#b91c1c', fillColor: '#ef4444' }).addTo(_leafletMap);
+  const dotStyle = { radius: 6, weight: 1.5, opacity: 1, fillOpacity: 0.9 };
+  if (gpsStart) {
+    const m = L.circleMarker(gpsStart, { ...dotStyle, color: '#16a34a', fillColor: '#22c55e' }).addTo(_leafletMap);
+    _makeMarkerPopup(m, 'Start', 'start', gpsStart);
+  }
+  if (gpsEnd) {
+    const m = L.circleMarker(gpsEnd, { ...dotStyle, color: '#b91c1c', fillColor: '#ef4444' }).addTo(_leafletMap);
+    _makeMarkerPopup(m, 'End', 'end', gpsEnd);
+  }
 }
 
 function closeModal() {
