@@ -28,6 +28,26 @@ def _thumbnail_path(base: Path, session_name: str) -> str | None:
     return f"stitched/{session_name}.jpg" if out.exists() else None
 
 
+_CAMERA_LABELS = {
+    "fcamera": "Front HD",
+    "ecamera": "Wide HD",
+    "dcamera": "Driver",
+}
+
+
+def _session_downloads(base: Path, session_name: str) -> list[dict]:
+    out_dir = base.parent / "stitched"
+    result = []
+    main = out_dir / f"{session_name}.mp4"
+    if main.exists():
+        result.append({"label": "Dashcam", "path": f"stitched/{session_name}.mp4"})
+    for f in sorted(out_dir.glob(f"{session_name}--*.mp4")):
+        camera = f.stem[len(session_name) + 2:]
+        label = _CAMERA_LABELS.get(camera, camera)
+        result.append({"label": label, "path": f"stitched/{f.name}"})
+    return result
+
+
 def _order_files(files: list[str]) -> list[str]:
     if "qcamera.ts" in files:
         rest = sorted(f for f in files if f != "qcamera.ts")
@@ -119,6 +139,7 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern) -> list:
             "segments": segments,
             "stitched_path": _stitched_path(base, session_name),
             "thumbnail_path": _thumbnail_path(base, session_name),
+            "downloads": _session_downloads(base, session_name),
             "start_dt": start_dt,
         })
 
@@ -158,6 +179,7 @@ def _build_nested(base: Path, top_dirs: list[Path]) -> list:
             "segments": segments,
             "stitched_path": _stitched_path(base, session_dir.name),
             "thumbnail_path": _thumbnail_path(base, session_dir.name),
+            "downloads": _session_downloads(base, session_dir.name),
             "start_dt": start_dt,
         })
 
