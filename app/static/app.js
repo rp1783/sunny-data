@@ -368,7 +368,13 @@ function openModal(session) {
 
   const downloads = (session.downloads || []).map(d => {
     const fname = d.path.split('/').pop();
-    return `<a class="dl-pill" style="color:#f59e0b;border-color:rgba(245,158,11,0.4)"
+    const color = _fileColor(fname);
+    const border = fname.endsWith('.ts')
+      ? 'rgba(134,239,172,0.35)'
+      : fname.endsWith('.hevc')
+        ? 'rgba(147,197,253,0.35)'
+        : 'rgba(156,163,175,0.28)';
+    return `<a class="dl-pill" style="color:${color};border-color:${border}"
        href="/files/${escHtml(d.path)}" download="${escHtml(fname)}">
       ⬇ ${escHtml(d.label)}
     </a>`;
