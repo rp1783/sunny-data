@@ -403,8 +403,10 @@ async function _reverseGeocode(lat, lon) {
     if (!res.ok) return null;
     const data = await res.json();
     const a = data.address || {};
-    return [a.road, a.suburb || a.neighbourhood || a.city_district, a.city || a.town || a.village]
-      .filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 2).join(',').trim() || null;
+    const street = [a.house_number, a.road].filter(Boolean).join(' ');
+    const city = a.city || a.town || a.village || a.suburb || a.neighbourhood || '';
+    const state = a.state || '';
+    return [street, city, state].filter(Boolean).join(', ') || null;
   } catch { return null; }
 }
 
