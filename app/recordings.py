@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from app_tz import APP_TZ
 from starred import load_starred
 
 _log = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ def _build_flat(base: Path, top_dirs: list[Path], pattern: re.Pattern, starred: 
         else:
             fallback_mtime = segs_sorted[0][3]
             start_mtime = fallback_mtime - min_seg_index * 60
-        start_dt = datetime.fromtimestamp(start_mtime)
+        start_dt = datetime.fromtimestamp(start_mtime, tz=APP_TZ)
         # mtime is the best available timestamp; it may drift after filesystem operations
         segments = []
         for seg_index, folder_name, raw_files, _ in segs_sorted:
@@ -192,7 +193,7 @@ def _build_nested(base: Path, top_dirs: list[Path], starred: set[str]) -> list:
             continue
 
         first_seg_dir = raw_segments[0][1]
-        start_dt = datetime.fromtimestamp(os.path.getmtime(first_seg_dir))
+        start_dt = datetime.fromtimestamp(os.path.getmtime(first_seg_dir), tz=APP_TZ)
         segments = []
         for seg_index, seg_dir, raw_files in raw_segments:
             seg_dt = start_dt + timedelta(minutes=seg_index)

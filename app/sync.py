@@ -6,6 +6,8 @@ import shlex
 import subprocess
 import threading
 from datetime import datetime, timezone
+
+from app_tz import APP_TZ
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -66,7 +68,7 @@ def _sync_worker(config: AppConfig) -> None:
         f"{config.device_user}@{config.device_ip}:{config.remote_path}",
         config.local_path,
     ]
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
     _broadcast(f"[{ts}] Starting sync...\n")
 
     try:
@@ -85,7 +87,7 @@ def _sync_worker(config: AppConfig) -> None:
     LAST_SYNC_PATH.parent.mkdir(parents=True, exist_ok=True)
     LAST_SYNC_PATH.write_text(json.dumps(result, indent=2))
 
-    done_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    done_ts = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
     word = "complete" if rc == 0 else "failed"
     _broadcast(f"[{done_ts}] Sync {word} (exit code {rc}).\n")
 
@@ -95,24 +97,24 @@ def _sync_worker(config: AppConfig) -> None:
         from starred import load_starred
         from comma_stats import update_all_stats
 
-        stats_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        stats_ts = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{stats_ts}] Computing drive stats...\n")
         try:
             update_all_stats(config.local_path)
         except Exception as exc:
             _broadcast(f"  Stats error: {exc}\n")
-        stats_done = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        stats_done = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{stats_done}] Stats complete.\n")
 
-        stitch_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        stitch_ts = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{stitch_ts}] Stitching sessions...\n")
         stitch_all(config.local_path, on_progress=lambda m: _broadcast(f"  {m}\n"))
-        done2 = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        done2 = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
         _broadcast(f"[{done2}] Stitching complete.\n")
 
         deleted = cleanup_old_sessions(config.local_path, load_starred())
         if deleted:
-            clean_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            clean_ts = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
             _broadcast(f"[{clean_ts}] Removed {len(deleted)} expired session(s).\n")
 
     _broadcast(None)  # sentinel — signals all SSE generators to stop
