@@ -2,7 +2,9 @@ import logging as _logging
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+import mimetypes
+
+from fastapi import FastAPI, HTTPException, Request
 from log_buffer import RingBufferHandler, get_all as get_logs
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -139,14 +141,60 @@ def get_recordings():
 
 
 @app.get("/files/{path:path}")
-def serve_file(path: str):
+async def serve_file(request: Request, path: str):
     config = load_config()
     if not config:
         raise HTTPException(status_code=400, detail="Configuration incomplete")
     file_path = resolve_file_path(config.local_path, path)
     if file_path is None:
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path=str(file_path))
+
+    file_size = file_path.stat().st_size
+    content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+    range_header = request.headers.get("Range")
+
+    if not range_header:
+        return FileResponse(path=str(file_path), headers={"Accept-Ranges": "bytes"})
+
+    # Parse "bytes=start-end"
+    try:
+        raw = range_header.replace("bytes=", "").strip()
+        start_s, end_s = raw.split("-")
+        start = int(start_s) if start_s else 0
+        end = int(end_s) if end_s else file_size - 1
+    except Exception:
+        raise HTTPException(status_code=416, detail="Invalid Range header")
+
+    if start >= file_size or end >= file_size or start > end:
+        raise HTTPException(
+            status_code=416,
+            headers={"Content-Range": f"bytes */{file_size}"},
+            detail="Range Not Satisfiable",
+        )
+
+    chunk = end - start + 1
+
+    def _iter():
+        with open(file_path, "rb") as f:
+            f.seek(start)
+            remaining = chunk
+            while remaining > 0:
+                data = f.read(min(65536, remaining))
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+
+    return StreamingResponse(
+        _iter(),
+        status_code=206,
+        media_type=content_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Content-Length": str(chunk),
+        },
+    )
 
 
 STATIC_DIR = Path(__file__).parent / "static"
