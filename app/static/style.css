@@ -11,7 +11,7 @@
   --accent-dim:    rgba(245, 158, 11, 0.08);
   --accent-glow:   rgba(245, 158, 11, 0.16);
   --text:          #c4d0e4;
-  --text-muted:    #5f7fa8;
+  --text-muted:    #35496a;
   --text-bright:   #edf2f8;
   --danger:        #ef4444;
   --success:       #22c55e;
@@ -32,7 +32,6 @@ body {
   font-weight: 500;
   letter-spacing: 0.02em;
   min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────── */
